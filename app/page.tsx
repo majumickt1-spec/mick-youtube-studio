@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -238,10 +237,6 @@ export default function Home() {
   const [question, setQuestion] = useState(0);
   const [newName, setNewName] = useState('');
   const [notice, setNotice] = useState('');
-  const [thumbnailImages, setThumbnailImages] = useState<string[]>([]);
-  const [imageAccessCode, setImageAccessCode] = useState('');
-  const [imageError, setImageError] = useState('');
-  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const titles = useMemo(
     () => makeTitles(state.selectedTopic, state.pillar),
     [state.selectedTopic, state.pillar],
@@ -252,7 +247,7 @@ export default function Home() {
   const completed = [
     Boolean(state.selectedTopic) &&
       state.answers.filter(Boolean).length === questions.length,
-    Boolean(state.selectedTitle) && thumbnailImages.length === 3,
+    Boolean(state.selectedTitle),
     Boolean(state.script) && Boolean(state.description),
     Boolean(state.editPlan),
     Boolean(state.fbCopy) && Boolean(state.igCopy),
@@ -327,37 +322,6 @@ export default function Home() {
   }
   function copyText(text: string, message: string) {
     void navigator.clipboard.writeText(text).then(() => setNotice(message));
-  }
-  async function generateThumbnails() {
-    if (!state.selectedTitle || !imageAccessCode.trim()) return;
-    setIsGeneratingImages(true);
-    setImageError('');
-    setThumbnailImages([]);
-
-    try {
-      const prompts = thumbIdeas.map(
-        (idea) =>
-          `${idea.prompt}. Video topic: ${state.selectedTitle}. The image must contain absolutely no visible text, letters, numbers, captions, logos, watermarks, or interface elements. Leave intentional negative space for adding Traditional Chinese headline later in Canva.`,
-      );
-      const response = await fetch('/api/thumbnails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompts, accessCode: imageAccessCode.trim() }),
-      });
-      const result = (await response.json()) as {
-        images?: string[];
-        error?: string;
-      };
-      if (!response.ok || result.images?.length !== 3) {
-        throw new Error(result.error || '沒有收到三張縮圖。');
-      }
-      setThumbnailImages(result.images);
-      setNotice('GPT Image 2 已完成三張無字縮圖。');
-    } catch (error) {
-      setImageError(error instanceof Error ? error.message : '縮圖生成失敗。');
-    } finally {
-      setIsGeneratingImages(false);
-    }
   }
   function exportProject() {
     const blob = new Blob([JSON.stringify(state, null, 2)], {
@@ -771,8 +735,6 @@ export default function Home() {
                           key={title}
                           onClick={() => {
                             update({ selectedTitle: title });
-                            setThumbnailImages([]);
-                            setImageError('');
                           }}
                           className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left text-sm font-semibold leading-6 ${state.selectedTitle === title ? 'border-[#d4af64] bg-[#d4af64]/10' : 'bg-[#faf9f6]'}`}
                         >
@@ -789,95 +751,48 @@ export default function Home() {
                     </div>
                   </section>
                   <section className="surface-card p-5 md:p-7">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-sm font-bold">
-                          GPT Image 2 縮圖生成
+                          三組縮圖企劃
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           圖片本身不放文字；大字建議留到 Canva 疊加。
                         </p>
+                        <Badge className="mt-3 border-[#d4af64]/40 bg-[#d4af64]/10 text-[#795d24]">
+                          AI 圖片生成延後建置
+                        </Badge>
                       </div>
                       <IconTile>
                         <ImageIcon className="size-5" />
                       </IconTile>
                     </div>
-                    <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                      <Input
-                        type="password"
-                        value={imageAccessCode}
-                        onChange={(event) =>
-                          setImageAccessCode(event.target.value)
-                        }
-                        placeholder="輸入平台使用碼"
-                        aria-label="平台使用碼"
-                        className="h-11 rounded-xl bg-[#faf9f6]"
-                      />
-                      <Button
-                        className="gold-button h-11 shrink-0"
-                        disabled={
-                          !state.selectedTitle ||
-                          !imageAccessCode.trim() ||
-                          isGeneratingImages
-                        }
-                        onClick={() => void generateThumbnails()}
-                      >
-                        <WandSparkles className="size-4" />
-                        {isGeneratingImages
-                          ? '正在生成 3 張…'
-                          : '生成 3 張無字縮圖'}
-                      </Button>
+                    <p className="mt-5 rounded-2xl border border-dashed p-4 text-sm leading-6 text-muted-foreground">
+                      目前先完成縮圖方向、大字建議與 Canva 英文提示詞；不需要設定 API，也不會在平台內產生圖片。
+                    </p>
+                    <div className="mt-5 grid gap-3">
+                      {thumbIdeas.map((idea, index) => (
+                        <button
+                          key={idea.name}
+                          onClick={() => update({ selectedThumb: index })}
+                          className={`rounded-2xl border bg-white p-4 text-left ${state.selectedThumb === index ? 'border-[#d4af64] ring-2 ring-[#d4af64]/25' : 'border-border'}`}
+                        >
+                          <p className="text-xs font-bold text-[#8b6c2d]">
+                            {idea.name}｜大字建議：{idea.text}
+                          </p>
+                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                            畫面方向：{idea.scene}
+                          </p>
+                          <p className="mt-3 rounded-lg bg-[#f4f1e9] p-3 font-mono text-[11px] leading-5 text-[#4c463a]">
+                            {idea.prompt}
+                          </p>
+                        </button>
+                      ))}
                     </div>
-                    {imageError && (
-                      <p className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700">
-                        {imageError}
-                      </p>
-                    )}
-                    {thumbnailImages.length !== 3 ? (
-                      <div className="mt-5 rounded-2xl border border-dashed p-6 text-sm leading-6 text-muted-foreground">
-                        選定左側標題並輸入平台使用碼後，GPT Image 2
-                        會直接生成三張 16:9 無字縮圖。提示詞仍保留，方便後續在
-                        Canva 調整。
-                      </div>
-                    ) : (
-                      <div className="mt-5 grid gap-3">
-                        {thumbIdeas.map((idea, index) => (
-                          <button
-                            key={idea.name}
-                            onClick={() => update({ selectedThumb: index })}
-                            className={`grid overflow-hidden rounded-2xl border text-left sm:grid-cols-[180px_1fr] ${state.selectedThumb === index ? 'border-[#d4af64] ring-2 ring-[#d4af64]/25' : 'border-border'}`}
-                          >
-                            <div className="aspect-video overflow-hidden bg-[#11110f] sm:aspect-auto">
-                              <Image
-                                src={thumbnailImages[index]}
-                                alt={`${idea.name}無字縮圖`}
-                                width={1536}
-                                height={1024}
-                                unoptimized
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                            <div className="bg-white p-4">
-                              <p className="text-xs font-bold text-[#8b6c2d]">
-                                {idea.name}｜大字建議：{idea.text}
-                              </p>
-                              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                                {idea.scene}
-                              </p>
-                              <p className="mt-3 rounded-lg bg-[#f4f1e9] p-3 font-mono text-[11px] leading-5 text-[#4c463a]">
-                                {idea.prompt}
-                              </p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
                   </section>
                 </div>
                 <NextButton
-                  disabled={
-                    !state.selectedTitle || thumbnailImages.length !== 3
-                  }
+                  disabled={!state.selectedTitle}
                   onClick={() => go(2)}
                 >
                   縮圖方向確認，開始寫腳本
