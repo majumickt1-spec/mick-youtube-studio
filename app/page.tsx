@@ -433,7 +433,7 @@ export default function Home() {
                     <Radar className="size-5" />
                   </IconTile>
                 </div>
-                <div className="mt-7 grid gap-5 md:grid-cols-2">
+                <div className="mt-7 grid gap-5">
                   <Field label="1. 有無靈感">
                     <Select
                       value={state.topicMode}
