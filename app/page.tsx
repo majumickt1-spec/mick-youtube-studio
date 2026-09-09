@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -143,7 +144,6 @@ type SavedState = {
   selectedTopic: string;
   selectedTitle: string;
   selectedThumb: number;
-  thumbnailsReady: boolean;
   answers: string[];
   script: string;
   description: string;
@@ -163,7 +163,6 @@ const initialState: SavedState = {
   selectedTopic: '',
   selectedTitle: '',
   selectedThumb: 0,
-  thumbnailsReady: false,
   answers: initialAnswers,
   script: '',
   description: '',
@@ -239,6 +238,10 @@ export default function Home() {
   const [question, setQuestion] = useState(0);
   const [newName, setNewName] = useState('');
   const [notice, setNotice] = useState('');
+  const [thumbnailImages, setThumbnailImages] = useState<string[]>([]);
+  const [imageAccessCode, setImageAccessCode] = useState('');
+  const [imageError, setImageError] = useState('');
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const titles = useMemo(
     () => makeTitles(state.selectedTopic, state.pillar),
     [state.selectedTopic, state.pillar],
@@ -249,7 +252,7 @@ export default function Home() {
   const completed = [
     Boolean(state.selectedTopic) &&
       state.answers.filter(Boolean).length === questions.length,
-    Boolean(state.selectedTitle) && state.thumbnailsReady,
+    Boolean(state.selectedTitle) && thumbnailImages.length === 3,
     Boolean(state.script) && Boolean(state.description),
     Boolean(state.editPlan),
     Boolean(state.fbCopy) && Boolean(state.igCopy),
@@ -324,6 +327,37 @@ export default function Home() {
   }
   function copyText(text: string, message: string) {
     void navigator.clipboard.writeText(text).then(() => setNotice(message));
+  }
+  async function generateThumbnails() {
+    if (!state.selectedTitle || !imageAccessCode.trim()) return;
+    setIsGeneratingImages(true);
+    setImageError('');
+    setThumbnailImages([]);
+
+    try {
+      const prompts = thumbIdeas.map(
+        (idea) =>
+          `${idea.prompt}. Video topic: ${state.selectedTitle}. The image must contain absolutely no visible text, letters, numbers, captions, logos, watermarks, or interface elements. Leave intentional negative space for adding Traditional Chinese headline later in Canva.`,
+      );
+      const response = await fetch('/api/thumbnails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompts, accessCode: imageAccessCode.trim() }),
+      });
+      const result = (await response.json()) as {
+        images?: string[];
+        error?: string;
+      };
+      if (!response.ok || result.images?.length !== 3) {
+        throw new Error(result.error || '沒有收到三張縮圖。');
+      }
+      setThumbnailImages(result.images);
+      setNotice('GPT Image 2 已完成三張無字縮圖。');
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : '縮圖生成失敗。');
+    } finally {
+      setIsGeneratingImages(false);
+    }
   }
   function exportProject() {
     const blob = new Blob([JSON.stringify(state, null, 2)], {
@@ -735,7 +769,11 @@ export default function Home() {
                       {titles.map((title) => (
                         <button
                           key={title}
-                          onClick={() => update({ selectedTitle: title })}
+                          onClick={() => {
+                            update({ selectedTitle: title });
+                            setThumbnailImages([]);
+                            setImageError('');
+                          }}
                           className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left text-sm font-semibold leading-6 ${state.selectedTitle === title ? 'border-[#d4af64] bg-[#d4af64]/10' : 'bg-[#faf9f6]'}`}
                         >
                           <span
@@ -753,7 +791,9 @@ export default function Home() {
                   <section className="surface-card p-5 md:p-7">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-bold">圖片模型縮圖任務</p>
+                        <p className="text-sm font-bold">
+                          GPT Image 2 縮圖生成
+                        </p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           圖片本身不放文字；大字建議留到 Canva 疊加。
                         </p>
@@ -762,17 +802,42 @@ export default function Home() {
                         <ImageIcon className="size-5" />
                       </IconTile>
                     </div>
-                    <Button
-                      className="gold-button mt-5"
-                      disabled={!state.selectedTitle}
-                      onClick={() => update({ thumbnailsReady: true })}
-                    >
-                      <WandSparkles className="size-4" />
-                      準備 3 組縮圖
-                    </Button>
-                    {!state.thumbnailsReady ? (
+                    <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                      <Input
+                        type="password"
+                        value={imageAccessCode}
+                        onChange={(event) =>
+                          setImageAccessCode(event.target.value)
+                        }
+                        placeholder="輸入平台使用碼"
+                        aria-label="平台使用碼"
+                        className="h-11 rounded-xl bg-[#faf9f6]"
+                      />
+                      <Button
+                        className="gold-button h-11 shrink-0"
+                        disabled={
+                          !state.selectedTitle ||
+                          !imageAccessCode.trim() ||
+                          isGeneratingImages
+                        }
+                        onClick={() => void generateThumbnails()}
+                      >
+                        <WandSparkles className="size-4" />
+                        {isGeneratingImages
+                          ? '正在生成 3 張…'
+                          : '生成 3 張無字縮圖'}
+                      </Button>
+                    </div>
+                    {imageError && (
+                      <p className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700">
+                        {imageError}
+                      </p>
+                    )}
+                    {thumbnailImages.length !== 3 ? (
                       <div className="mt-5 rounded-2xl border border-dashed p-6 text-sm leading-6 text-muted-foreground">
-                        先選定左側標題，再建立三組無字圖像方向。正式圖片生成需接入圖片模型金鑰。
+                        選定左側標題並輸入平台使用碼後，GPT Image 2
+                        會直接生成三張 16:9 無字縮圖。提示詞仍保留，方便後續在
+                        Canva 調整。
                       </div>
                     ) : (
                       <div className="mt-5 grid gap-3">
@@ -782,8 +847,15 @@ export default function Home() {
                             onClick={() => update({ selectedThumb: index })}
                             className={`grid overflow-hidden rounded-2xl border text-left sm:grid-cols-[180px_1fr] ${state.selectedThumb === index ? 'border-[#d4af64] ring-2 ring-[#d4af64]/25' : 'border-border'}`}
                           >
-                            <div className="grid aspect-video place-items-center bg-[radial-gradient(circle_at_30%_30%,#d4af64_0,#40351f_24%,#11110f_68%)] text-[#e7c87f] sm:aspect-auto">
-                              <ImageIcon className="size-8 opacity-70" />
+                            <div className="aspect-video overflow-hidden bg-[#11110f] sm:aspect-auto">
+                              <Image
+                                src={thumbnailImages[index]}
+                                alt={`${idea.name}無字縮圖`}
+                                width={1536}
+                                height={1024}
+                                unoptimized
+                                className="h-full w-full object-cover"
+                              />
                             </div>
                             <div className="bg-white p-4">
                               <p className="text-xs font-bold text-[#8b6c2d]">
@@ -803,7 +875,9 @@ export default function Home() {
                   </section>
                 </div>
                 <NextButton
-                  disabled={!state.selectedTitle || !state.thumbnailsReady}
+                  disabled={
+                    !state.selectedTitle || thumbnailImages.length !== 3
+                  }
                   onClick={() => go(2)}
                 >
                   縮圖方向確認，開始寫腳本
