@@ -13,6 +13,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -49,7 +56,7 @@ declare global {
 }
 
 const steps = [
-  { label: '選題雷達', detail: '時事選題／既定主題＋本人提問', icon: Radar },
+  { label: '選題雷達', detail: '靈感狀態＋方向＋痛點與來源', icon: Radar },
   {
     label: '縮圖生成',
     detail: '3 組無字圖＋大字與 Canva 提示詞',
@@ -58,14 +65,6 @@ const steps = [
   { label: '腳本創作', detail: '口語腳本＋資訊欄文案', icon: NotebookPen },
   { label: 'AI 剪輯', detail: '透過剪輯 Skill 建立成片', icon: Scissors },
   { label: '社群宣傳', detail: 'Facebook＋Instagram 文案', icon: Share2 },
-];
-
-const questions = [
-  '你為什麼會想談這個題目？最近看見了什麼？',
-  '你自己真的經歷過、做過，或觀察過什麼？',
-  '這件事會怎麼改善現金流，或降低對薪水的依賴？',
-  '如果只能教觀眾一個可執行的方法，你會教哪一步？',
-  '觀眾看完後，今天晚上可以做的最小行動是什麼？',
 ];
 
 const thumbIdeasByPillar = {
@@ -92,7 +91,7 @@ const thumbIdeasByPillar = {
         'Realistic family calendar beside essential bills and limited emergency cash, visual countdown tension, premium black white and gold palette, warm cinematic lighting, YouTube thumbnail, 16:9, no text, no letters, no logo',
     },
   ],
-  'AI 副業資產': [
+  AI資產建立: [
     {
       name: '資產判斷',
       text: '副業還是打工？',
@@ -120,30 +119,25 @@ const thumbIdeasByPillar = {
 const pillars = [
   {
     value: '現金流管理',
-    label: '現金流管理｜守住現在',
-    detail: '看懂錢流、資產負債與家庭安全墊',
+    label: '現金流管理',
   },
   {
-    value: 'AI 副業資產',
-    label: 'AI 副業資產｜創造未來',
-    detail: '用 AI 建立可累積的非工資收入來源',
+    value: 'AI資產建立',
+    label: 'AI資產建立',
   },
 ];
-
-const initialAnswers = questions.map(() => '');
 
 type SavedState = {
   videoName: string;
   topicMode: string;
   pillar: string;
   keyword: string;
-  audience: string;
+  supplement: string;
   sources: string;
   candidates: string[];
   selectedTopic: string;
   selectedTitle: string;
   selectedThumb: number;
-  answers: string[];
   script: string;
   description: string;
   editPlan: string;
@@ -155,14 +149,13 @@ const initialState: SavedState = {
   videoName: '本月第 1 支｜降低薪水依賴',
   topicMode: 'trend',
   pillar: '現金流管理',
-  keyword: '薪水中斷、家庭現金流',
-  audience: '35–55 歲、有家庭責任、主要收入仍來自薪水的上班族',
+  keyword: '',
+  supplement: '',
   sources: '',
   candidates: [],
   selectedTopic: '',
   selectedTitle: '',
   selectedThumb: 0,
-  answers: initialAnswers,
   script: '',
   description: '',
   editPlan: '',
@@ -170,15 +163,33 @@ const initialState: SavedState = {
   igCopy: '',
 };
 
-function makeCandidates(keyword: string, pillar: string) {
+function makeCandidates(keyword: string, pillar: string, topicMode: string) {
   const focus = keyword.trim() || '降低薪水依賴';
-  if (pillar === 'AI 副業資產') {
+  if (pillar === 'AI資產建立') {
+    if (topicMode === 'planned') {
+      return [
+        `${focus}：這份 AI 副業是在增加收入，還是在建立資產？`,
+        `${focus}：普通上班族可以先做的第一個 AI 資產`,
+        `${focus}：別急著換工具，先驗證有沒有人願意付錢`,
+        `${focus}：每天一小時，如何累積可重複銷售的內容資產？`,
+        `${focus}：從一次性接案走向可累積收入的三個步驟`,
+      ];
+    }
     return [
       `這份 AI 副業只是多打一份工，還是在累積資產？｜${focus}`,
       `普通上班族怎麼用 AI，做出第一個有人願意付錢的數位產品？`,
       `別再只學 AI 工具：先算它能不能替你增加非工資收入`,
       `每天只有一小時，怎麼把 YouTube 內容變成可累積的收入資產？`,
       `AI 副業沒賺錢，不一定是工具不夠強：你可能少了現金流驗證`,
+    ];
+  }
+  if (topicMode === 'planned') {
+    return [
+      `${focus}：先從家庭每月現金流找出真正問題`,
+      `${focus}：資產不少，為什麼還是沒有安全感？`,
+      `${focus}：用現金流安全天數看懂你能撐多久`,
+      `${focus}：哪些固定支出正在拿走你的選擇權？`,
+      `${focus}：從薪水依賴走向財務餘裕的第一步`,
     ];
   }
   return [
@@ -192,7 +203,7 @@ function makeCandidates(keyword: string, pillar: string) {
 
 function makeTitles(topic: string, pillar: string) {
   const base = topic || '家庭現金流出了問題';
-  if (pillar === 'AI 副業資產') {
+  if (pillar === 'AI資產建立') {
     return [
       base.split('｜')[0],
       '這份 AI 副業是在賺收入，還是在建立資產？',
@@ -208,9 +219,9 @@ function makeTitles(topic: string, pillar: string) {
 
 function buildScript(state: SavedState) {
   const title = state.selectedTitle || state.selectedTopic || '本集主題待確認';
-  const answer = (index: number) =>
-    state.answers[index]?.trim() || '〔待補米克大叔本人原話〕';
-  return `# ${title}\n\n## ▌Hook\n如果有一天薪水消失了，你現在擁有的現金流，能不能繼續支撐生活？這一集，我們不追最新工具，也不追最高報酬，而是看這件事能不能降低你對薪水的依賴。\n\n## ▌生活場景與真實素材\n${answer(0)}\n\n${answer(1)}\n\n## ▌重新理解問題\n${answer(2)}\n\n頻道的核心不是投資，也不是 AI 副業，而是現金流。資產與負債要看它每個月帶來或拿走多少現金；AI 則是普通上班族建立副業資產、增加非工資收入的手段。\n\n## ▌方法\n${answer(3)}\n\n把方法放回這一條路：先守住家庭現金流，再把副業收入變成可累積的資產。1 倍是財富自由的門檻，2 倍才有可以掉、可以修、可以等、可以拒絕的餘裕。\n\n## ▌最小行動\n${answer(4)}\n\n## ▌CTA\n依本集內容只保留一個已確認可用的行動或資源；連結上架前再次核對，不放未核實網址。\n\n## ▌定位管理確認\n核心：現金流｜方法：管理現金流＋建立 AI 副業資產｜終點：非工資收入 ≥ 2×總支出，拿回人生選擇權。\n\n## ▌試讀提醒\n把這份稿念出來。凡是你平常不會說的句子，就改回你的原話；沒有親身經歷的故事，不要補。`;
+  const supplement = state.supplement.trim() || '〔未提供額外補充〕';
+  const sources = state.sources.trim() || '〔未提供參考來源〕';
+  return `# ${title}\n\n## ▌Hook\n如果有一天薪水消失了，你現在擁有的現金流，能不能繼續支撐生活？這一集，我們不追最新工具，也不追最高報酬，而是看這件事能不能降低你對薪水的依賴。\n\n## ▌觀眾痛點\n${state.keyword}\n\n## ▌米克大叔補充\n${supplement}\n\n## ▌參考來源\n${sources}\n\n## ▌重新理解問題\n頻道的核心不是投資，也不是 AI 副業，而是現金流。資產與負債要看它每個月帶來或拿走多少現金；AI 則是普通上班族建立副業資產、增加非工資收入的手段。\n\n## ▌方法\n把方法放回這一條路：先守住家庭現金流，再把副業收入變成可累積的資產。1 倍是財富自由的門檻，2 倍才有可以掉、可以修、可以等、可以拒絕的餘裕。\n\n## ▌最小行動\n依這次痛點整理一個觀眾今天晚上就能開始的具體步驟。\n\n## ▌CTA\n依本集內容只保留一個已確認可用的行動或資源；連結上架前再次核對，不放未核實網址。\n\n## ▌定位管理確認\n核心：現金流｜方法：管理現金流＋建立 AI 副業資產｜終點：非工資收入 ≥ 2×總支出，拿回人生選擇權。\n\n## ▌試讀提醒\n把這份稿念出來。凡是你平常不會說的句子，就改回你的原話；沒有親身經歷的故事，不要補。`;
 }
 
 function buildDescription(state: SavedState) {
@@ -219,7 +230,7 @@ function buildDescription(state: SavedState) {
 }
 
 function buildEditPlan(state: SavedState) {
-  return `# ${state.selectedTitle || state.selectedTopic}｜AI 剪輯任務\n\n## 節奏\n開場 10 秒快速建立「薪水消失」的危機感；觀念段保留停頓；方法段加入條列與關鍵字畫面；結尾回到 1 倍與 2 倍。\n\n## 必留素材\n${state.answers.map((answer, index) => `${index + 1}. ${answer}`).join('\n')}\n\n## 畫面規則\n黑白金、溫暖寫實、家庭感；不使用卡通人物、通用商務人物或暴富視覺。字幕保持繁體中文，關鍵數字只強調「1×」與「2×」。\n\n## 交付\n16:9 YouTube 主片、去除明顯停頓與口誤、保留自然呼吸；需由米克大叔看片確認後才能定稿。`;
+  return `# ${state.selectedTitle || state.selectedTopic}｜AI 剪輯任務\n\n## 節奏\n開場 10 秒快速建立「薪水消失」的危機感；觀念段保留停頓；方法段加入條列與關鍵字畫面；結尾回到 1 倍與 2 倍。\n\n## 必留重點\n觀眾痛點：${state.keyword}\n米克補充：${state.supplement || '無'}\n\n## 畫面規則\n黑白金、溫暖寫實、家庭感；不使用卡通人物、通用商務人物或暴富視覺。字幕保持繁體中文，關鍵數字只強調「1×」與「2×」。\n\n## 交付\n16:9 YouTube 主片、去除明顯停頓與口誤、保留自然呼吸；需由米克大叔看片確認後才能定稿。`;
 }
 
 function buildSocialCopy(state: SavedState) {
@@ -234,7 +245,6 @@ export default function Home() {
   const [stage, setStage] = useState('0');
   const [state, setState] = useState<SavedState>(initialState);
   const [hydrated, setHydrated] = useState(false);
-  const [question, setQuestion] = useState(0);
   const [newName, setNewName] = useState('');
   const [notice, setNotice] = useState('');
   const titles = useMemo(
@@ -245,8 +255,7 @@ export default function Home() {
     thumbIdeasByPillar[state.pillar as keyof typeof thumbIdeasByPillar] ||
     thumbIdeasByPillar.現金流管理;
   const completed = [
-    Boolean(state.selectedTopic) &&
-      state.answers.filter(Boolean).length === questions.length,
+    Boolean(state.selectedTopic),
     Boolean(state.selectedTitle),
     Boolean(state.script) && Boolean(state.description),
     Boolean(state.editPlan),
@@ -255,7 +264,7 @@ export default function Home() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const saved = window.localStorage.getItem('mick-youtube-studio-v3');
+      const saved = window.localStorage.getItem('mick-youtube-studio-v4');
       if (saved) {
         try {
           setState({ ...initialState, ...JSON.parse(saved) });
@@ -271,7 +280,7 @@ export default function Home() {
   useEffect(() => {
     if (!hydrated) return;
     window.localStorage.setItem(
-      'mick-youtube-studio-v3',
+      'mick-youtube-studio-v4',
       JSON.stringify(state),
     );
   }, [hydrated, state]);
@@ -338,7 +347,6 @@ export default function Home() {
   function resetProject() {
     setState({ ...initialState, videoName: newName.trim() || '未命名影片' });
     setStage('0');
-    setQuestion(0);
     setNewName('');
     setNotice('新影片已建立。');
   }
@@ -475,113 +483,108 @@ export default function Home() {
         <TabsContent value="0">
           <StageShell
             step="STEP 01"
-            eyebrow="沒有靈感找時事，有主題就直接驗證"
-            title="選題雷達：先找到值得說的問題。"
+            eyebrow="用五項資訊快速收斂創作方向"
+            title="選題雷達：先把這支影片說清楚。"
           >
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.38fr)_minmax(330px,.62fr)]">
-              <section className="surface-card p-5 md:p-7">
+            <section className="surface-card p-5 md:p-7">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-base font-bold">選擇這次的起點</p>
+                    <p className="text-base font-bold">填寫選題條件</p>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      不論從時事或既定主題出發，都要回到現金流。
+                      前兩項直接選擇，後三項保留你的想法與參考資料。
                     </p>
                   </div>
                   <IconTile>
                     <Radar className="size-5" />
                   </IconTile>
                 </div>
-                <div className="mt-6 grid gap-3 md:grid-cols-2">
-                  {[
-                    [
-                      'trend',
-                      '沒有靈感｜時事選題',
-                      '貼上近期新聞、熱門影片或搜尋線索',
-                    ],
-                    [
-                      'planned',
-                      '已有方向｜既定主題',
-                      '直接輸入你已經想談的核心問題',
-                    ],
-                  ].map(([value, label, detail]) => (
-                    <button
-                      key={value}
-                      onClick={() =>
+                <div className="mt-7 grid gap-5 md:grid-cols-2">
+                  <Field label="1. 有無靈感">
+                    <Select
+                      value={state.topicMode}
+                      onValueChange={(value) => {
+                        if (!value) return;
                         update({
                           topicMode: value,
                           candidates: [],
                           selectedTopic: '',
                           selectedTitle: '',
-                          answers: initialAnswers,
-                        })
-                      }
-                      className={`rounded-xl border p-4 text-left ${state.topicMode === value ? 'border-[#d4af64] bg-[#d4af64]/10' : 'bg-[#faf9f6]'}`}
+                        });
+                      }}
                     >
-                      <span className="block text-sm font-bold">{label}</span>
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        {detail}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-7 grid gap-5 md:grid-cols-2">
-                  <Field
-                    label={
-                      state.topicMode === 'trend'
-                        ? '最近想關注什麼時事？'
-                        : '你已經想談什麼主題？'
-                    }
-                  >
-                    <Input
-                      value={state.keyword}
-                      onChange={(e) => update({ keyword: e.target.value })}
-                    />
+                      <SelectTrigger className="h-12 w-full rounded-xl bg-[#faf9f6]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="trend">沒有靈感</SelectItem>
+                        <SelectItem value="planned">已有方向</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </Field>
-                  <Field label="這支片要陪誰解決？">
-                    <Input
-                      value={state.audience}
-                      onChange={(e) => update({ audience: e.target.value })}
-                    />
+                  <Field label="2. 創作方向">
+                    <Select
+                      value={state.pillar}
+                      onValueChange={(value) => {
+                        if (!value) return;
+                        update({
+                          pillar: value,
+                          candidates: [],
+                          selectedTopic: '',
+                          selectedTitle: '',
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-12 w-full rounded-xl bg-[#faf9f6]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pillars.map((pillar) => (
+                          <SelectItem key={pillar.value} value={pillar.value}>
+                            {pillar.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </Field>
-                </div>
-                <div className="mt-5">
-                  <p className="text-sm font-medium">這支片走哪一條內容線？</p>
-                  <div className="mt-2 grid gap-3 md:grid-cols-2">
-                    {pillars.map((pillar) => (
-                      <button
-                        key={pillar.value}
-                        onClick={() =>
-                          update({
-                            pillar: pillar.value,
-                            candidates: [],
-                            selectedTopic: '',
-                            selectedTitle: '',
-                          })
-                        }
-                        className={`rounded-xl border p-4 text-left transition ${state.pillar === pillar.value ? 'border-[#d4af64] bg-[#d4af64]/10' : 'bg-[#faf9f6] hover:border-[#d4af64]/50'}`}
-                      >
-                        <span className="block text-sm font-bold">
-                          {pillar.label}
-                        </span>
-                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                          {pillar.detail}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
                 </div>
                 <Field
-                  label={
-                    state.topicMode === 'trend'
-                      ? '貼上時事來源、數據或熱門影片'
-                      : '貼上既有筆記、資料或參考來源'
-                  }
+                  label="3. 這影片想解決什麼痛點？"
+                  className="mt-5"
+                >
+                  <Input
+                    value={state.keyword}
+                    onChange={(event) =>
+                      update({
+                        keyword: event.target.value,
+                        candidates: [],
+                        selectedTopic: '',
+                        selectedTitle: '',
+                      })
+                    }
+                    placeholder="例如：擔心薪水中斷，卻不知道家庭現金流能撐多久"
+                  />
+                </Field>
+                <Field
+                  label="4. 關於這次主題，有沒有特別想補充的？"
+                  className="mt-5"
+                >
+                  <Textarea
+                    value={state.supplement}
+                    onChange={(event) =>
+                      update({ supplement: event.target.value })
+                    }
+                    placeholder="可填入你的觀點、親身經驗、案例或希望一定提到的內容。"
+                    className="min-h-28"
+                  />
+                </Field>
+                <Field
+                  label="5. 對標影片網址或參考來源"
                   className="mt-5"
                 >
                   <Textarea
                     value={state.sources}
-                    onChange={(e) => update({ sources: e.target.value })}
-                    placeholder="網址、標題、觀看數與發布日期；沒有來源的數字不進腳本。"
+                    onChange={(event) => update({ sources: event.target.value })}
+                    placeholder="貼上 YouTube 影片網址、文章、數據來源或參考筆記。"
                     className="min-h-28"
                   />
                 </Field>
@@ -589,30 +592,31 @@ export default function Home() {
                   <Button
                     size="lg"
                     className="gold-button"
+                    disabled={!state.keyword.trim()}
                     onClick={() =>
                       update({
-                        candidates: makeCandidates(state.keyword, state.pillar),
+                        candidates: makeCandidates(
+                          state.keyword,
+                          state.pillar,
+                          state.topicMode,
+                        ),
                       })
                     }
                   >
                     <Sparkles className="size-4" />
-                    {state.topicMode === 'trend'
-                      ? '產生時事選題'
-                      : '產生主題切角'}
+                    產生 5 個候選題
                   </Button>
                   <span className="text-xs text-muted-foreground">
-                    依「現金流核心」產生；時事與數據仍需核實來源。
+                    參考網址與數據仍需在寫稿前核實。
                   </span>
                 </div>
-              </section>
-              <BrandGate />
-            </div>
+            </section>
             {state.candidates.length > 0 && (
               <section className="mt-6">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-lg font-bold">5 個候選題</h3>
                   <span className="text-xs text-muted-foreground">
-                    選定一題，再回答本人素材提問
+                    選定一題後進入縮圖企劃
                   </span>
                 </div>
                 <div className="grid gap-3">
@@ -632,8 +636,7 @@ export default function Home() {
                           {candidate}
                         </span>
                         <span className="mt-1 block text-xs text-muted-foreground">
-                          {state.pillar} · 改善現金流 · 降低薪水依賴 ·
-                          仍需核實來源
+                          {state.pillar} · 參考來源仍需核實
                         </span>
                       </span>
                       {state.selectedTopic === candidate ? (
@@ -645,64 +648,9 @@ export default function Home() {
                   ))}
                 </div>
                 {state.selectedTopic && (
-                  <section className="surface-card mt-6 p-5 md:p-7">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-base font-bold">本人素材提問</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          一次回答一題，讓腳本保留你的故事與判斷。
-                        </p>
-                      </div>
-                      <Badge variant="outline">
-                        {state.answers.filter(Boolean).length} /{' '}
-                        {questions.length}
-                      </Badge>
-                    </div>
-                    <h3 className="mt-6 text-xl font-black leading-8">
-                      {questions[question]}
-                    </h3>
-                    <Textarea
-                      value={state.answers[question]}
-                      onChange={(event) => {
-                        const answers = [...state.answers];
-                        answers[question] = event.target.value;
-                        update({ answers, script: '', description: '' });
-                      }}
-                      placeholder="直接保留你的原話，不需要先整理得很漂亮。"
-                      className="mt-4 min-h-36 text-base leading-7"
-                    />
-                    <div className="mt-4 flex items-center justify-between">
-                      <Button
-                        variant="outline"
-                        disabled={question === 0}
-                        onClick={() => setQuestion((value) => value - 1)}
-                      >
-                        <ArrowLeft className="size-4" />
-                        上一題
-                      </Button>
-                      {question < questions.length - 1 ? (
-                        <Button
-                          className="gold-button"
-                          disabled={!state.answers[question].trim()}
-                          onClick={() => setQuestion((value) => value + 1)}
-                        >
-                          保存，下一題
-                          <ArrowRight className="size-4" />
-                        </Button>
-                      ) : (
-                        <Button
-                          className="gold-button"
-                          disabled={state.answers.some(
-                            (answer) => !answer.trim(),
-                          )}
-                          onClick={() => go(1)}
-                        >
-                          素材完成，生成縮圖
-                          <ArrowRight className="size-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </section>
+                  <NextButton onClick={() => go(1)}>
+                    確認選題，進入縮圖企劃
+                  </NextButton>
                 )}
               </section>
             )}
@@ -717,7 +665,7 @@ export default function Home() {
           >
             {!state.selectedTopic ? (
               <Blocked
-                text="先回到選題雷達，選定主題並完成本人素材提問。"
+                text="先回到選題雷達，完成五項條件並選定主題。"
                 onClick={() => go(0)}
               />
             ) : (
@@ -805,12 +753,12 @@ export default function Home() {
         <TabsContent value="2">
           <StageShell
             step="STEP 03"
-            eyebrow="用本人素材寫稿，主片與資訊欄一次完成"
+            eyebrow="依選題條件寫稿，主片與資訊欄一次完成"
             title="腳本創作與資訊欄文案。"
           >
-            {state.answers.some((answer) => !answer.trim()) ? (
+            {!state.selectedTopic ? (
               <Blocked
-                text="先回到選題雷達，完成五題本人素材提問。"
+                text="先回到選題雷達，完成五項條件並選定主題。"
                 onClick={() => go(0)}
               />
             ) : (
@@ -849,7 +797,7 @@ export default function Home() {
                       onChange={(event) =>
                         update({ script: event.target.value })
                       }
-                      placeholder="按上方按鈕，依本人素材整理腳本。"
+                      placeholder="按上方按鈕，依選題條件整理腳本。"
                       className="mt-4 min-h-[620px] font-mono text-sm leading-7"
                     />
                   </section>
@@ -1147,44 +1095,5 @@ function Blocked({ text, onClick }: { text: string; onClick: () => void }) {
         </Button>
       </div>
     </div>
-  );
-}
-function BrandGate() {
-  return (
-    <aside className="rounded-[28px] bg-[#151515] p-6 text-white md:p-7">
-      <p className="text-xs font-semibold tracking-[0.16em] text-[#d4af64]">
-        米克定位檢查｜2026
-      </p>
-      <h3 className="mt-3 text-2xl font-bold leading-tight">
-        每個選題，都要回答同一個問題。
-      </h3>
-      <p className="mt-3 text-sm leading-6 text-white/60">
-        它能不能改善普通上班族家庭的現金流？
-      </p>
-      <div className="mt-7 space-y-5">
-        {[
-          ['01', '現金流是核心嗎？', '不追工具或報酬率本身，先看每月錢流'],
-          ['02', '能降低薪水依賴嗎？', '守住現在，或建立可累積的副業資產'],
-          ['03', '終點更接近 2 倍嗎？', '非工資收入 ≥ 2×總支出，換回選擇權'],
-          ['04', '你真的有話可以說嗎？', '真實經歷、自己的判斷、可做的方法'],
-        ].map(([n, title, body]) => (
-          <div key={n} className="flex gap-4 border-t border-white/10 pt-5">
-            <span className="font-mono text-xs text-[#d4af64]">{n}</span>
-            <div>
-              <p className="font-semibold">{title}</p>
-              <p className="mt-1 text-sm leading-6 text-white/48">{body}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-7 rounded-xl border border-[#d4af64]/25 bg-[#d4af64]/10 p-4">
-        <p className="text-sm font-bold text-[#e7c87f]">
-          1 倍是自由門檻，2 倍是生活餘裕。
-        </p>
-        <p className="mt-2 text-xs leading-5 text-white/55">
-          可以掉、可以修、可以等、可以拒絕。
-        </p>
-      </div>
-    </aside>
   );
 }
