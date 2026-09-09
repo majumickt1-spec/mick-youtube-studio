@@ -3,15 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -36,7 +27,6 @@ import {
   Menu,
   NotebookPen,
   Play,
-  Plus,
   Radar,
   Scissors,
   Share2,
@@ -245,7 +235,6 @@ export default function Home() {
   const [stage, setStage] = useState('0');
   const [state, setState] = useState<SavedState>(initialState);
   const [hydrated, setHydrated] = useState(false);
-  const [newName, setNewName] = useState('');
   const [notice, setNotice] = useState('');
   const titles = useMemo(
     () => makeTitles(state.selectedTopic, state.pillar),
@@ -294,7 +283,7 @@ export default function Home() {
         {
           name: 'open_creation_stage',
           title: '開啟創作階段',
-          description: '在米克 YouTube 創作台中開啟指定階段。',
+          description: '在 YT-AI Agent創作平台(CX) 中開啟指定階段。',
           inputSchema: {
             type: 'object',
             properties: { stage: { type: 'integer', minimum: 1, maximum: 5 } },
@@ -344,13 +333,6 @@ export default function Home() {
     URL.revokeObjectURL(url);
     setNotice('本集企劃已匯出備份。');
   }
-  function resetProject() {
-    setState({ ...initialState, videoName: newName.trim() || '未命名影片' });
-    setStage('0');
-    setNewName('');
-    setNotice('新影片已建立。');
-  }
-
   return (
     <Tabs
       value={stage}
@@ -363,7 +345,7 @@ export default function Home() {
             <Anchor className="size-5" />
           </div>
           <div>
-            <p className="font-semibold tracking-wide">YT 創作智能體平台</p>
+            <p className="font-semibold tracking-wide">YT-AI Agent創作平台(CX)</p>
             <p className="text-xs text-white/48">五步完成一支影片</p>
           </div>
         </div>
@@ -405,53 +387,6 @@ export default function Home() {
       </aside>
 
       <main className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex min-h-20 items-center justify-between border-b border-border/70 bg-background/90 px-5 backdrop-blur-xl md:px-9">
-          <div className="min-w-0">
-            <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground">
-              目前製作
-            </p>
-            <h1 className="mt-1 truncate text-lg font-bold tracking-tight md:text-xl">
-              {state.videoName}
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="匯出本集備份"
-              onClick={exportProject}
-            >
-              <Download className="size-4" />
-            </Button>
-            <Dialog>
-              <DialogTrigger
-                render={
-                  <Button className="rounded-full bg-[#151515] px-4 text-white hover:bg-[#2b2925]" />
-                }
-              >
-                <Plus className="size-4" />
-                <span className="hidden sm:inline">新影片</span>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>建立一支新影片</DialogTitle>
-                  <DialogDescription>
-                    目前這一集會留在瀏覽器備份中；建議先匯出再開始。
-                  </DialogDescription>
-                </DialogHeader>
-                <Input
-                  value={newName}
-                  onChange={(event) => setNewName(event.target.value)}
-                  placeholder="例如：九月第 2 支｜安全天數"
-                />
-                <DialogFooter>
-                  <Button onClick={resetProject}>建立並回到選題</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </header>
-
         <div className="border-b border-border bg-[#151515] px-4 py-3 lg:hidden">
           <div className="mb-2 flex items-center gap-2 text-white">
             <Menu className="size-4" />
@@ -484,7 +419,7 @@ export default function Home() {
           <StageShell
             step="STEP 01"
             eyebrow="用五項資訊快速收斂創作方向"
-            title="選題雷達：先把這支影片說清楚。"
+            title="選題雷達：找出觀眾想解決的痛點。"
           >
             <section className="surface-card p-5 md:p-7">
                 <div className="flex items-start justify-between gap-4">
@@ -513,7 +448,11 @@ export default function Home() {
                       }}
                     >
                       <SelectTrigger className="h-12 w-full rounded-xl bg-[#faf9f6]">
-                        <SelectValue />
+                        <SelectValue>
+                          {state.topicMode === 'planned'
+                            ? '已有方向'
+                            : '沒有靈感'}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="trend">沒有靈感</SelectItem>
