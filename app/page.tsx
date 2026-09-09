@@ -753,7 +753,7 @@ export default function Home() {
                   <section className="surface-card p-5 md:p-7">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-bold">ImageGen 2 縮圖任務</p>
+                        <p className="text-sm font-bold">圖片模型縮圖任務</p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           圖片本身不放文字；大字建議留到 Canva 疊加。
                         </p>
