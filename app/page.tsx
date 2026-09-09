@@ -22,8 +22,10 @@ import {
   CircleCheck,
   Copy,
   Download,
+  ExternalLink,
   ImageIcon,
   Lightbulb,
+  LoaderCircle,
   Menu,
   NotebookPen,
   Play,
@@ -117,6 +119,21 @@ const pillars = [
   },
 ];
 
+type ResearchSource = {
+  title: string;
+  url: string;
+  excerpt: string;
+};
+
+type TopicCandidate = {
+  title: string;
+  angle: string;
+  publishedAt: string;
+  score: number;
+  inferred: boolean;
+  source: ResearchSource | null;
+};
+
 type SavedState = {
   videoName: string;
   topicMode: string;
@@ -125,6 +142,7 @@ type SavedState = {
   supplement: string;
   sources: string;
   candidates: string[];
+  candidateDetails: TopicCandidate[];
   selectedTopic: string;
   selectedTitle: string;
   selectedThumb: number;
@@ -143,6 +161,7 @@ const initialState: SavedState = {
   supplement: '',
   sources: '',
   candidates: [],
+  candidateDetails: [],
   selectedTopic: '',
   selectedTitle: '',
   selectedThumb: 0,
@@ -236,6 +255,10 @@ export default function Home() {
   const [state, setState] = useState<SavedState>(initialState);
   const [hydrated, setHydrated] = useState(false);
   const [notice, setNotice] = useState('');
+  const [accessCode, setAccessCode] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchPhase, setSearchPhase] = useState('');
+  const [searchError, setSearchError] = useState('');
   const titles = useMemo(
     () => makeTitles(state.selectedTopic, state.pillar),
     [state.selectedTopic, state.pillar],
@@ -261,6 +284,7 @@ export default function Home() {
           /* preserve a fresh safe state */
         }
       }
+      setAccessCode(window.sessionStorage.getItem('studio-access-code') || '');
       setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timer);
@@ -320,6 +344,82 @@ export default function Home() {
   }
   function copyText(text: string, message: string) {
     void navigator.clipboard.writeText(text).then(() => setNotice(message));
+  }
+  async function generateCandidates() {
+    setSearchError('');
+    if (state.topicMode === 'planned') {
+      update({
+        candidates: makeCandidates(state.keyword, state.pillar, state.topicMode),
+        candidateDetails: [],
+      });
+      return;
+    }
+    if (!accessCode.trim()) {
+      setSearchError('請先輸入平台使用碼。');
+      return;
+    }
+
+    setIsSearching(true);
+    window.sessionStorage.setItem('studio-access-code', accessCode.trim());
+    try {
+      setSearchPhase('第一階段：正在搜尋近 30 天台灣熱點並核實來源…');
+      const researchResponse = await fetch('/api/topic-radar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          phase: 'research',
+          accessCode: accessCode.trim(),
+          pillar: state.pillar,
+          keyword: state.keyword,
+          supplement: state.supplement,
+          references: state.sources,
+        }),
+      });
+      const researchData = (await researchResponse.json()) as {
+        research?: string;
+        sources?: ResearchSource[];
+        error?: string;
+      };
+      if (!researchResponse.ok || !researchData.research) {
+        throw new Error(researchData.error || '無法完成網路研究');
+      }
+
+      setSearchPhase('第二階段：正在把查證素材整理成 5–8 個選題…');
+      const topicResponse = await fetch('/api/topic-radar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          phase: 'topics',
+          accessCode: accessCode.trim(),
+          pillar: state.pillar,
+          keyword: state.keyword,
+          supplement: state.supplement,
+          research: researchData.research,
+          sources: researchData.sources || [],
+        }),
+      });
+      const topicData = (await topicResponse.json()) as {
+        candidates?: TopicCandidate[];
+        error?: string;
+      };
+      if (!topicResponse.ok || !topicData.candidates) {
+        throw new Error(topicData.error || '無法產生選題');
+      }
+      update({
+        candidates: topicData.candidates.map((candidate) => candidate.title),
+        candidateDetails: topicData.candidates,
+        selectedTopic: '',
+        selectedTitle: '',
+      });
+      setSearchPhase('');
+    } catch (error) {
+      setSearchPhase('');
+      setSearchError(
+        error instanceof Error ? error.message : '選題雷達暫時無法使用',
+      );
+    } finally {
+      setIsSearching(false);
+    }
   }
   function exportProject() {
     const blob = new Blob([JSON.stringify(state, null, 2)], {
@@ -442,6 +542,7 @@ export default function Home() {
                         update({
                           topicMode: value,
                           candidates: [],
+                          candidateDetails: [],
                           selectedTopic: '',
                           selectedTitle: '',
                         });
@@ -468,6 +569,7 @@ export default function Home() {
                         update({
                           pillar: value,
                           candidates: [],
+                          candidateDetails: [],
                           selectedTopic: '',
                           selectedTitle: '',
                         });
@@ -496,6 +598,7 @@ export default function Home() {
                       update({
                         keyword: event.target.value,
                         candidates: [],
+                        candidateDetails: [],
                         selectedTopic: '',
                         selectedTitle: '',
                       })
@@ -510,7 +613,11 @@ export default function Home() {
                   <Textarea
                     value={state.supplement}
                     onChange={(event) =>
-                      update({ supplement: event.target.value })
+                      update({
+                        supplement: event.target.value,
+                        candidates: [],
+                        candidateDetails: [],
+                      })
                     }
                     placeholder="可填入你的觀點、親身經驗、案例或希望一定提到的內容。"
                     className="min-h-28"
@@ -522,70 +629,176 @@ export default function Home() {
                 >
                   <Textarea
                     value={state.sources}
-                    onChange={(event) => update({ sources: event.target.value })}
+                    onChange={(event) =>
+                      update({
+                        sources: event.target.value,
+                        candidates: [],
+                        candidateDetails: [],
+                      })
+                    }
                     placeholder="貼上 YouTube 影片網址、文章、數據來源或參考筆記。"
                     className="min-h-28"
                   />
                 </Field>
+                {state.topicMode === 'trend' && (
+                  <Field label="平台使用碼" className="mt-5">
+                    <Input
+                      type="password"
+                      value={accessCode}
+                      onChange={(event) => setAccessCode(event.target.value)}
+                      placeholder="用來保護你的 Anthropic API 額度"
+                      autoComplete="current-password"
+                    />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      這不是 Anthropic API Key，只會暫存在目前瀏覽器分頁。
+                    </p>
+                  </Field>
+                )}
                 <div className="mt-5 flex flex-wrap items-center gap-3">
                   <Button
                     size="lg"
                     className="gold-button"
-                    disabled={!state.keyword.trim()}
-                    onClick={() =>
-                      update({
-                        candidates: makeCandidates(
-                          state.keyword,
-                          state.pillar,
-                          state.topicMode,
-                        ),
-                      })
+                    disabled={
+                      isSearching ||
+                      (state.topicMode === 'planned' && !state.keyword.trim())
                     }
+                    onClick={() => void generateCandidates()}
                   >
-                    <Sparkles className="size-4" />
-                    產生 5 個候選題
+                    {isSearching ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-4" />
+                    )}
+                    {state.topicMode === 'trend'
+                      ? '搜尋台灣熱點並產生選題'
+                      : '依目前方向產生 5 個候選題'}
                   </Button>
                   <span className="text-xs text-muted-foreground">
-                    參考網址與數據仍需在寫稿前核實。
+                    {state.topicMode === 'trend'
+                      ? '先查證近 30 天來源，再整理成選題。'
+                      : '依你輸入的方向快速發想。'}
                   </span>
                 </div>
+                {searchPhase && (
+                  <p className="mt-4 rounded-xl border border-[#d4af64]/30 bg-[#d4af64]/10 px-4 py-3 text-sm">
+                    {searchPhase}
+                  </p>
+                )}
+                {searchError && (
+                  <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {searchError}
+                  </p>
+                )}
             </section>
             {state.candidates.length > 0 && (
               <section className="mt-6">
                 <div className="mb-3 flex items-center justify-between">
-                  <h3 className="text-lg font-bold">5 個候選題</h3>
+                  <h3 className="text-lg font-bold">
+                    {state.candidates.length} 個候選題
+                  </h3>
                   <span className="text-xs text-muted-foreground">
                     選定一題後進入縮圖企劃
                   </span>
                 </div>
-                <div className="grid gap-3">
-                  {state.candidates.map((candidate, index) => (
-                    <button
-                      key={candidate}
-                      onClick={() =>
-                        update({ selectedTopic: candidate, selectedTitle: '' })
-                      }
-                      className={`group flex items-center gap-4 rounded-2xl border p-4 text-left transition ${state.selectedTopic === candidate ? 'border-[#d4af64] bg-[#d4af64]/10' : 'bg-card hover:border-[#d4af64]/50'}`}
-                    >
-                      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[#151515] font-mono text-xs text-[#d4af64]">
-                        {90 - index * 3}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="font-semibold leading-6">
-                          {candidate}
+                {state.candidateDetails.length > 0 ? (
+                  <div className="overflow-hidden rounded-2xl border bg-card">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[820px] border-collapse text-left text-sm">
+                        <thead className="bg-[#151515] text-white">
+                          <tr>
+                            <th className="w-24 px-4 py-3 font-semibold">評分</th>
+                            <th className="px-4 py-3 font-semibold">選題</th>
+                            <th className="px-4 py-3 font-semibold">現金流切角</th>
+                            <th className="w-64 px-4 py-3 font-semibold">來源</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {state.candidateDetails.map((candidate) => (
+                            <tr
+                              key={candidate.title}
+                              className={`border-t align-top ${state.selectedTopic === candidate.title ? 'bg-[#d4af64]/10' : ''}`}
+                            >
+                              <td className="px-4 py-4 font-semibold text-[#8b6c2d]">
+                                {'★'.repeat(candidate.score)}
+                                {'☆'.repeat(5 - candidate.score)}
+                              </td>
+                              <td className="px-4 py-4">
+                                <button
+                                  onClick={() =>
+                                    update({
+                                      selectedTopic: candidate.title,
+                                      selectedTitle: '',
+                                    })
+                                  }
+                                  className="flex w-full items-start gap-2 text-left font-bold leading-6 hover:text-[#8b6c2d]"
+                                >
+                                  <span className="mt-1 grid size-4 shrink-0 place-items-center rounded-full border border-[#d4af64]">
+                                    {state.selectedTopic === candidate.title && (
+                                      <Check className="size-3" />
+                                    )}
+                                  </span>
+                                  {candidate.title}
+                                </button>
+                              </td>
+                              <td className="px-4 py-4 leading-6 text-muted-foreground">
+                                {candidate.angle}
+                              </td>
+                              <td className="px-4 py-4 text-xs leading-5">
+                                {candidate.inferred || !candidate.source ? (
+                                  <span className="font-semibold text-amber-700">
+                                    AI 推想選題｜無直接來源
+                                  </span>
+                                ) : (
+                                  <a
+                                    href={candidate.source.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="font-semibold text-[#6f541f] underline underline-offset-4"
+                                  >
+                                    {candidate.source.title}
+                                    <ExternalLink className="ml-1 inline size-3" />
+                                    <span className="mt-1 block font-normal text-muted-foreground no-underline">
+                                      {candidate.publishedAt}
+                                    </span>
+                                  </a>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {state.candidates.map((candidate, index) => (
+                      <button
+                        key={candidate}
+                        onClick={() =>
+                          update({ selectedTopic: candidate, selectedTitle: '' })
+                        }
+                        className={`group flex items-center gap-4 rounded-2xl border p-4 text-left transition ${state.selectedTopic === candidate ? 'border-[#d4af64] bg-[#d4af64]/10' : 'bg-card hover:border-[#d4af64]/50'}`}
+                      >
+                        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[#151515] font-mono text-xs text-[#d4af64]">
+                          {90 - index * 3}
                         </span>
-                        <span className="mt-1 block text-xs text-muted-foreground">
-                          {state.pillar} · 參考來源仍需核實
+                        <span className="min-w-0 flex-1">
+                          <span className="font-semibold leading-6">
+                            {candidate}
+                          </span>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            {state.pillar} · 依目前方向發想
+                          </span>
                         </span>
-                      </span>
-                      {state.selectedTopic === candidate ? (
-                        <Check className="size-5 text-[#8b6c2d]" />
-                      ) : (
-                        <ChevronRight className="size-5 text-muted-foreground" />
-                      )}
-                    </button>
-                  ))}
-                </div>
+                        {state.selectedTopic === candidate ? (
+                          <Check className="size-5 text-[#8b6c2d]" />
+                        ) : (
+                          <ChevronRight className="size-5 text-muted-foreground" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {state.selectedTopic && (
                   <NextButton onClick={() => go(1)}>
                     確認選題，進入縮圖企劃
