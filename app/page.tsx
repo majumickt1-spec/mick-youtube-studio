@@ -379,38 +379,76 @@ export default function Home() {
     setActiveSearchAction('research');
     window.sessionStorage.setItem('studio-access-code', accessCode.trim());
     try {
-      setSearchPhase('正在搜尋近 30 天台灣熱點並核實來源…');
-      const researchResponse = await fetch('/api/topic-radar', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          phase: 'research',
-          accessCode: accessCode.trim(),
-          pillar: state.pillar,
-          keyword: state.keyword,
-          supplement: state.supplement,
-          references: state.sources,
-        }),
+      setSearchPhase('正在同時執行 3 組近期熱點查證…');
+      const researchTasks = [1, 2, 3].map(async (researchSlot) => {
+        const response = await fetch('/api/topic-radar', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            phase: 'research',
+            researchSlot,
+            accessCode: accessCode.trim(),
+            pillar: state.pillar,
+            keyword: state.keyword,
+            supplement: state.supplement,
+            references: state.sources,
+          }),
+        });
+        const data = (await response.json()) as {
+          research?: string;
+          sources?: ResearchSource[];
+          searchedAt?: string;
+          error?: string;
+        };
+        if (!response.ok || !data.research) {
+          throw new Error(data.error || `第 ${researchSlot} 組查證失敗`);
+        }
+        return { ...data, researchSlot };
       });
-      const researchData = (await researchResponse.json()) as {
-        research?: string;
-        sources?: ResearchSource[];
-        searchedAt?: string;
-        error?: string;
-      };
-      if (!researchResponse.ok || !researchData.research) {
-        throw new Error(researchData.error || '無法完成網路研究');
+      const settled = await Promise.allSettled(researchTasks);
+      const completedResearch = settled
+        .filter(
+          (
+            result,
+          ): result is PromiseFulfilledResult<
+            Awaited<(typeof researchTasks)[number]>
+          > => result.status === 'fulfilled',
+        )
+        .map((result) => result.value);
+      if (completedResearch.length === 0) {
+        const firstFailure = settled.find(
+          (result): result is PromiseRejectedResult =>
+            result.status === 'rejected',
+        );
+        throw new Error(
+          firstFailure?.reason instanceof Error
+            ? firstFailure.reason.message
+            : '3 組網路查證都沒有成功，請稍後再試一次。',
+        );
+      }
+      const sourceMap = new Map<string, ResearchSource>();
+      for (const item of completedResearch) {
+        for (const source of item.sources || []) {
+          sourceMap.set(source.url, source);
+        }
       }
       update({
-        researchSummary: researchData.research,
-        researchSources: researchData.sources || [],
-        researchDate: researchData.searchedAt || '',
+        researchSummary: completedResearch
+          .sort((a, b) => a.researchSlot - b.researchSlot)
+          .map((item) => `【第 ${item.researchSlot} 組查證】\n${item.research}`)
+          .join('\n\n'),
+        researchSources: [...sourceMap.values()],
+        researchDate: completedResearch[0].searchedAt || '',
         candidates: [],
         candidateDetails: [],
         selectedTopic: '',
         selectedTitle: '',
       });
-      setSearchPhase('查證完成。請檢視素材，再按第二步產生選題。');
+      setSearchPhase(
+        completedResearch.length === 3
+          ? '3 組查證完成。請檢視素材，再按第二步產生選題。'
+          : `已保留 ${completedResearch.length}/3 組成功結果；可直接產生選題，或重新搜尋補齊。`,
+      );
     } catch (error) {
       setSearchPhase('');
       setSearchError(

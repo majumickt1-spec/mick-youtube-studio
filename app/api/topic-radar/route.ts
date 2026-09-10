@@ -1,4 +1,4 @@
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
@@ -122,6 +122,18 @@ export async function POST(request: Request) {
         pillar === '現金流管理'
           ? '台灣房貸、家庭支出、就業、通膨、保險與現金流風險'
           : '台灣 AI 工具、數位產品、內容資產、副業收入與工作流';
+      const requestedSlot = Number(body.researchSlot);
+      const researchSlot =
+        Number.isInteger(requestedSlot) &&
+        requestedSlot >= 1 &&
+        requestedSlot <= 3
+          ? requestedSlot
+          : 1;
+      const searchFocus = [
+        `優先查「${keyword || fallbackFocus}」最近 30 天的台灣新聞與事件`,
+        `優先查與「${pillar}」相關的台灣政府、研究機構或原始統計資料`,
+        `優先查「${supplement || fallbackFocus}」相關的台灣產業趨勢、主要媒體報導與生活案例`,
+      ][researchSlot - 1];
       const today = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Taipei',
         year: 'numeric',
@@ -138,9 +150,10 @@ export async function POST(request: Request) {
 對標影片或參考來源：${references || '未提供'}
 無明確輸入時的搜尋焦點：${fallbackFocus}
 
-請執行 3 次聚焦搜尋，優先台灣政府、研究機構、主要媒體與原始發布來源。只整理能由搜尋結果支持的事實，不可用既有記憶補新聞，不可捏造日期或數字。若找不到合格來源，明確寫「查無足夠的近 30 天來源」。
+這是第 ${researchSlot} 組獨立查證，搜尋重點：${searchFocus}。
+只執行 1 次聚焦搜尋，優先台灣政府、研究機構、主要媒體與原始發布來源。只整理能由搜尋結果支持的事實，不可用既有記憶補新聞，不可捏造日期或數字。若找不到合格來源，明確寫「查無足夠的近 30 天來源」。
 
-請用精簡繁體中文輸出最多 8 筆研究摘要，每筆包含：事件、發布日期、與家庭現金流的關聯、可切入的觀眾痛點。這一步只整理研究，不要產生影片標題。`;
+請用精簡繁體中文輸出最多 3 筆研究摘要，每筆包含：事件、發布日期、與家庭現金流的關聯、可切入的觀眾痛點。這一步只整理研究，不要產生影片標題。`;
 
       const messages: Array<Record<string, unknown>> = [
         { role: 'user', content: prompt },
@@ -149,7 +162,7 @@ export async function POST(request: Request) {
         {
           type: 'web_search_20260209',
           name: 'web_search',
-          max_uses: 3,
+          max_uses: 1,
           user_location: {
             type: 'approximate',
             country: 'TW',
@@ -157,12 +170,12 @@ export async function POST(request: Request) {
           },
         },
       ];
-      const searchDeadline = AbortSignal.timeout(105_000);
+      const searchDeadline = AbortSignal.timeout(52_000);
       let result = await callAnthropic(
         apiKey,
         {
           model,
-          max_tokens: 1800,
+          max_tokens: 900,
           messages,
           tools,
         },
@@ -176,7 +189,7 @@ export async function POST(request: Request) {
           apiKey,
           {
             model,
-            max_tokens: 1200,
+            max_tokens: 700,
             messages,
             tools,
           },
