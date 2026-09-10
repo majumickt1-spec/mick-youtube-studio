@@ -1,4 +1,4 @@
-export const maxDuration = 55;
+export const maxDuration = 60;
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
@@ -54,7 +54,7 @@ function sourcesFrom(responses: AnthropicResponse[]) {
 async function callAnthropic(
   apiKey: string,
   payload: Record<string, unknown>,
-  timeoutMs = 45_000,
+  signal = AbortSignal.timeout(50_000),
 ) {
   const response = await fetch(ANTHROPIC_URL, {
     method: 'POST',
@@ -64,7 +64,7 @@ async function callAnthropic(
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(timeoutMs),
+    signal,
   });
   const data = (await response.json()) as AnthropicResponse;
   if (!response.ok) {
@@ -102,10 +102,7 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as Record<string, unknown>;
-    if (
-      typeof body.accessCode !== 'string' ||
-      body.accessCode !== studioCode
-    ) {
+    if (typeof body.accessCode !== 'string' || body.accessCode !== studioCode) {
       return Response.json({ error: '平台使用碼不正確。' }, { status: 401 });
     }
 
@@ -141,9 +138,9 @@ export async function POST(request: Request) {
 對標影片或參考來源：${references || '未提供'}
 無明確輸入時的搜尋焦點：${fallbackFocus}
 
-請執行 3–4 次聚焦搜尋，優先台灣政府、研究機構、主要媒體與原始發布來源。只整理能由搜尋結果支持的事實，不可用既有記憶補新聞，不可捏造日期或數字。若找不到合格來源，明確寫「查無足夠的近 30 天來源」。
+請執行 3 次聚焦搜尋，優先台灣政府、研究機構、主要媒體與原始發布來源。只整理能由搜尋結果支持的事實，不可用既有記憶補新聞，不可捏造日期或數字。若找不到合格來源，明確寫「查無足夠的近 30 天來源」。
 
-請用繁體中文輸出研究摘要，每筆包含：事件、發布日期、與家庭現金流的關聯、可切入的觀眾痛點。這一步只整理研究，不要產生影片標題。`;
+請用精簡繁體中文輸出最多 8 筆研究摘要，每筆包含：事件、發布日期、與家庭現金流的關聯、可切入的觀眾痛點。這一步只整理研究，不要產生影片標題。`;
 
       const messages: Array<Record<string, unknown>> = [
         { role: 'user', content: prompt },
@@ -152,7 +149,7 @@ export async function POST(request: Request) {
         {
           type: 'web_search_20250305',
           name: 'web_search',
-          max_uses: 4,
+          max_uses: 3,
           user_location: {
             type: 'approximate',
             country: 'TW',
@@ -160,15 +157,16 @@ export async function POST(request: Request) {
           },
         },
       ];
+      const searchDeadline = AbortSignal.timeout(55_000);
       let result = await callAnthropic(
         apiKey,
         {
           model,
-          max_tokens: 2600,
+          max_tokens: 1800,
           messages,
           tools,
         },
-        42_000,
+        searchDeadline,
       );
       const researchTurns = [result];
       if (result.stop_reason === 'pause_turn' && result.content) {
@@ -178,11 +176,11 @@ export async function POST(request: Request) {
           apiKey,
           {
             model,
-            max_tokens: 1800,
+            max_tokens: 1200,
             messages,
             tools,
           },
-          8_000,
+          searchDeadline,
         );
         researchTurns.push(result);
       }
@@ -208,7 +206,10 @@ export async function POST(request: Request) {
         .filter((source) => source.title && /^https?:\/\//.test(source.url))
         .slice(0, 12);
       if (!research) {
-        return Response.json({ error: '缺少第一階段研究結果。' }, { status: 400 });
+        return Response.json(
+          { error: '缺少第一階段研究結果。' },
+          { status: 400 },
+        );
       }
 
       const sourceList = sources
@@ -273,7 +274,13 @@ ${sourceList || '沒有取得可引用來源'}
 
     return Response.json({ error: '不支援的處理階段。' }, { status: 400 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : '選題雷達暫時無法使用';
+    const message =
+      error instanceof DOMException &&
+      (error.name === 'TimeoutError' || error.name === 'AbortError')
+        ? '網路熱點搜尋超過等待時間，請稍後再試一次。'
+        : error instanceof Error
+          ? error.message
+          : '選題雷達暫時無法使用';
     return Response.json({ error: message }, { status: 500 });
   }
 }
