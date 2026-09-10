@@ -1,4 +1,4 @@
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
       ];
       const tools = [
         {
-          type: 'web_search_20250305',
+          type: 'web_search_20260209',
           name: 'web_search',
           max_uses: 3,
           user_location: {
@@ -157,7 +157,7 @@ export async function POST(request: Request) {
           },
         },
       ];
-      const searchDeadline = AbortSignal.timeout(55_000);
+      const searchDeadline = AbortSignal.timeout(105_000);
       let result = await callAnthropic(
         apiKey,
         {

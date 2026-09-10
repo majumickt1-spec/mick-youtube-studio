@@ -141,6 +141,9 @@ type SavedState = {
   keyword: string;
   supplement: string;
   sources: string;
+  researchSummary: string;
+  researchSources: ResearchSource[];
+  researchDate: string;
   candidates: string[];
   candidateDetails: TopicCandidate[];
   selectedTopic: string;
@@ -160,6 +163,9 @@ const initialState: SavedState = {
   keyword: '',
   supplement: '',
   sources: '',
+  researchSummary: '',
+  researchSources: [],
+  researchDate: '',
   candidates: [],
   candidateDetails: [],
   selectedTopic: '',
@@ -257,6 +263,9 @@ export default function Home() {
   const [notice, setNotice] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [activeSearchAction, setActiveSearchAction] = useState<
+    'research' | 'topics' | ''
+  >('');
   const [searchPhase, setSearchPhase] = useState('');
   const [searchError, setSearchError] = useState('');
   const titles = useMemo(
@@ -333,6 +342,20 @@ export default function Home() {
   function update(patch: Partial<SavedState>) {
     setState((current) => ({ ...current, ...patch }));
   }
+  function clearResearchAndTopics(extra: Partial<SavedState>) {
+    update({
+      ...extra,
+      researchSummary: '',
+      researchSources: [],
+      researchDate: '',
+      candidates: [],
+      candidateDetails: [],
+      selectedTopic: '',
+      selectedTitle: '',
+    });
+    setSearchPhase('');
+    setSearchError('');
+  }
   function go(next: number) {
     setStage(String(next));
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -345,24 +368,18 @@ export default function Home() {
   function copyText(text: string, message: string) {
     void navigator.clipboard.writeText(text).then(() => setNotice(message));
   }
-  async function generateCandidates() {
+  async function researchTrends() {
     setSearchError('');
-    if (state.topicMode === 'planned') {
-      update({
-        candidates: makeCandidates(state.keyword, state.pillar, state.topicMode),
-        candidateDetails: [],
-      });
-      return;
-    }
     if (!accessCode.trim()) {
       setSearchError('請先輸入平台使用碼。');
       return;
     }
 
     setIsSearching(true);
+    setActiveSearchAction('research');
     window.sessionStorage.setItem('studio-access-code', accessCode.trim());
     try {
-      setSearchPhase('第一階段：正在搜尋近 30 天台灣熱點並核實來源…');
+      setSearchPhase('正在搜尋近 30 天台灣熱點並核實來源…');
       const researchResponse = await fetch('/api/topic-radar', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -378,13 +395,59 @@ export default function Home() {
       const researchData = (await researchResponse.json()) as {
         research?: string;
         sources?: ResearchSource[];
+        searchedAt?: string;
         error?: string;
       };
       if (!researchResponse.ok || !researchData.research) {
         throw new Error(researchData.error || '無法完成網路研究');
       }
+      update({
+        researchSummary: researchData.research,
+        researchSources: researchData.sources || [],
+        researchDate: researchData.searchedAt || '',
+        candidates: [],
+        candidateDetails: [],
+        selectedTopic: '',
+        selectedTitle: '',
+      });
+      setSearchPhase('查證完成。請檢視素材，再按第二步產生選題。');
+    } catch (error) {
+      setSearchPhase('');
+      setSearchError(
+        error instanceof Error ? error.message : '選題雷達暫時無法使用',
+      );
+    } finally {
+      setIsSearching(false);
+      setActiveSearchAction('');
+    }
+  }
+  async function generateCandidates() {
+    setSearchError('');
+    if (state.topicMode === 'planned') {
+      update({
+        candidates: makeCandidates(
+          state.keyword,
+          state.pillar,
+          state.topicMode,
+        ),
+        candidateDetails: [],
+      });
+      return;
+    }
+    if (!accessCode.trim()) {
+      setSearchError('請先輸入平台使用碼。');
+      return;
+    }
+    if (!state.researchSummary) {
+      setSearchError('請先完成第一步的熱點搜尋與查證。');
+      return;
+    }
 
-      setSearchPhase('第二階段：正在把查證素材整理成 5–8 個選題…');
+    setIsSearching(true);
+    setActiveSearchAction('topics');
+    window.sessionStorage.setItem('studio-access-code', accessCode.trim());
+    try {
+      setSearchPhase('正在根據已保存的查證資料產生 5–8 個選題…');
       const topicResponse = await fetch('/api/topic-radar', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -394,8 +457,8 @@ export default function Home() {
           pillar: state.pillar,
           keyword: state.keyword,
           supplement: state.supplement,
-          research: researchData.research,
-          sources: researchData.sources || [],
+          research: state.researchSummary,
+          sources: state.researchSources,
         }),
       });
       const topicData = (await topicResponse.json()) as {
@@ -419,6 +482,7 @@ export default function Home() {
       );
     } finally {
       setIsSearching(false);
+      setActiveSearchAction('');
     }
   }
   function exportProject() {
@@ -445,7 +509,9 @@ export default function Home() {
             <Anchor className="size-5" />
           </div>
           <div>
-            <p className="font-semibold tracking-wide">YT-AI Agent創作平台(CX)</p>
+            <p className="font-semibold tracking-wide">
+              YT-AI Agent創作平台(CX)
+            </p>
             <p className="text-xs text-white/48">五步完成一支影片</p>
           </div>
         </div>
@@ -522,173 +588,211 @@ export default function Home() {
             title="選題雷達：找出觀眾想解決的痛點。"
           >
             <section className="surface-card p-5 md:p-7">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-base font-bold">填寫選題條件</p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      前兩項直接選擇，後三項保留你的想法與參考資料。
-                    </p>
-                  </div>
-                  <IconTile>
-                    <Radar className="size-5" />
-                  </IconTile>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-base font-bold">填寫選題條件</p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    前兩項直接選擇，後三項保留你的想法與參考資料。
+                  </p>
                 </div>
-                <div className="mt-7 grid gap-5">
-                  <Field label="1. 有無靈感">
-                    <Select
-                      value={state.topicMode}
-                      onValueChange={(value) => {
-                        if (!value) return;
-                        update({
-                          topicMode: value,
-                          candidates: [],
-                          candidateDetails: [],
-                          selectedTopic: '',
-                          selectedTitle: '',
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="h-12 w-full rounded-xl bg-[#faf9f6]">
-                        <SelectValue>
-                          {state.topicMode === 'planned'
-                            ? '已有方向'
-                            : '沒有靈感'}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="trend">沒有靈感</SelectItem>
-                        <SelectItem value="planned">已有方向</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label="2. 創作方向">
-                    <Select
-                      value={state.pillar}
-                      onValueChange={(value) => {
-                        if (!value) return;
-                        update({
-                          pillar: value,
-                          candidates: [],
-                          candidateDetails: [],
-                          selectedTopic: '',
-                          selectedTitle: '',
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="h-12 w-full rounded-xl bg-[#faf9f6]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {pillars.map((pillar) => (
-                          <SelectItem key={pillar.value} value={pillar.value}>
-                            {pillar.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </div>
-                <Field
-                  label="3. 這影片想解決什麼痛點？"
-                  className="mt-5"
-                >
+                <IconTile>
+                  <Radar className="size-5" />
+                </IconTile>
+              </div>
+              <div className="mt-7 grid gap-5">
+                <Field label="1. 有無靈感">
+                  <Select
+                    value={state.topicMode}
+                    onValueChange={(value) => {
+                      if (!value) return;
+                      clearResearchAndTopics({
+                        topicMode: value,
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="h-12 w-full rounded-xl bg-[#faf9f6]">
+                      <SelectValue>
+                        {state.topicMode === 'planned'
+                          ? '已有方向'
+                          : '沒有靈感'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="trend">沒有靈感</SelectItem>
+                      <SelectItem value="planned">已有方向</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="2. 創作方向">
+                  <Select
+                    value={state.pillar}
+                    onValueChange={(value) => {
+                      if (!value) return;
+                      clearResearchAndTopics({
+                        pillar: value,
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="h-12 w-full rounded-xl bg-[#faf9f6]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pillars.map((pillar) => (
+                        <SelectItem key={pillar.value} value={pillar.value}>
+                          {pillar.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+              <Field label="3. 這影片想解決什麼痛點？" className="mt-5">
+                <Input
+                  value={state.keyword}
+                  onChange={(event) =>
+                    clearResearchAndTopics({
+                      keyword: event.target.value,
+                    })
+                  }
+                  placeholder="例如：擔心薪水中斷，卻不知道家庭現金流能撐多久"
+                />
+              </Field>
+              <Field
+                label="4. 關於這次主題，有沒有特別想補充的？"
+                className="mt-5"
+              >
+                <Textarea
+                  value={state.supplement}
+                  onChange={(event) =>
+                    clearResearchAndTopics({
+                      supplement: event.target.value,
+                    })
+                  }
+                  placeholder="可填入你的觀點、親身經驗、案例或希望一定提到的內容。"
+                  className="min-h-28"
+                />
+              </Field>
+              <Field label="5. 對標影片網址或參考來源" className="mt-5">
+                <Textarea
+                  value={state.sources}
+                  onChange={(event) =>
+                    clearResearchAndTopics({
+                      sources: event.target.value,
+                    })
+                  }
+                  placeholder="貼上 YouTube 影片網址、文章、數據來源或參考筆記。"
+                  className="min-h-28"
+                />
+              </Field>
+              {state.topicMode === 'trend' && (
+                <Field label="平台使用碼" className="mt-5">
                   <Input
-                    value={state.keyword}
-                    onChange={(event) =>
-                      update({
-                        keyword: event.target.value,
-                        candidates: [],
-                        candidateDetails: [],
-                        selectedTopic: '',
-                        selectedTitle: '',
-                      })
-                    }
-                    placeholder="例如：擔心薪水中斷，卻不知道家庭現金流能撐多久"
+                    type="password"
+                    value={accessCode}
+                    onChange={(event) => setAccessCode(event.target.value)}
+                    placeholder="用來保護你的 Anthropic API 額度"
+                    autoComplete="current-password"
                   />
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    這不是 Anthropic API Key，只會暫存在目前瀏覽器分頁。
+                  </p>
                 </Field>
-                <Field
-                  label="4. 關於這次主題，有沒有特別想補充的？"
-                  className="mt-5"
-                >
-                  <Textarea
-                    value={state.supplement}
-                    onChange={(event) =>
-                      update({
-                        supplement: event.target.value,
-                        candidates: [],
-                        candidateDetails: [],
-                      })
-                    }
-                    placeholder="可填入你的觀點、親身經驗、案例或希望一定提到的內容。"
-                    className="min-h-28"
-                  />
-                </Field>
-                <Field
-                  label="5. 對標影片網址或參考來源"
-                  className="mt-5"
-                >
-                  <Textarea
-                    value={state.sources}
-                    onChange={(event) =>
-                      update({
-                        sources: event.target.value,
-                        candidates: [],
-                        candidateDetails: [],
-                      })
-                    }
-                    placeholder="貼上 YouTube 影片網址、文章、數據來源或參考筆記。"
-                    className="min-h-28"
-                  />
-                </Field>
-                {state.topicMode === 'trend' && (
-                  <Field label="平台使用碼" className="mt-5">
-                    <Input
-                      type="password"
-                      value={accessCode}
-                      onChange={(event) => setAccessCode(event.target.value)}
-                      placeholder="用來保護你的 Anthropic API 額度"
-                      autoComplete="current-password"
-                    />
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      這不是 Anthropic API Key，只會暫存在目前瀏覽器分頁。
-                    </p>
-                  </Field>
-                )}
+              )}
+              {state.topicMode === 'trend' ? (
                 <div className="mt-5 flex flex-wrap items-center gap-3">
                   <Button
                     size="lg"
                     className="gold-button"
-                    disabled={
-                      isSearching ||
-                      (state.topicMode === 'planned' && !state.keyword.trim())
-                    }
+                    disabled={isSearching}
+                    onClick={() => void researchTrends()}
+                  >
+                    {activeSearchAction === 'research' ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <Radar className="size-4" />
+                    )}
+                    第一步：搜尋並查證近期熱點
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    disabled={isSearching || !state.researchSummary}
                     onClick={() => void generateCandidates()}
                   >
-                    {isSearching ? (
+                    {activeSearchAction === 'topics' ? (
                       <LoaderCircle className="size-4 animate-spin" />
                     ) : (
                       <Sparkles className="size-4" />
                     )}
-                    {state.topicMode === 'trend'
-                      ? '搜尋台灣熱點並產生選題'
-                      : '依目前方向產生 5 個候選題'}
+                    第二步：根據查證來源產生選題
                   </Button>
-                  <span className="text-xs text-muted-foreground">
-                    {state.topicMode === 'trend'
-                      ? '先查證近 30 天來源，再整理成選題。'
-                      : '依你輸入的方向快速發想。'}
+                  <span className="w-full text-xs text-muted-foreground">
+                    第二步失敗時可直接重試，不會重新搜尋。
                   </span>
                 </div>
-                {searchPhase && (
-                  <p className="mt-4 rounded-xl border border-[#d4af64]/30 bg-[#d4af64]/10 px-4 py-3 text-sm">
-                    {searchPhase}
+              ) : (
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <Button
+                    size="lg"
+                    className="gold-button"
+                    disabled={!state.keyword.trim()}
+                    onClick={() => void generateCandidates()}
+                  >
+                    <Sparkles className="size-4" />
+                    依目前方向產生 5 個候選題
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    依你輸入的方向快速發想。
+                  </span>
+                </div>
+              )}
+              {searchPhase && (
+                <p className="mt-4 rounded-xl border border-[#d4af64]/30 bg-[#d4af64]/10 px-4 py-3 text-sm">
+                  {searchPhase}
+                </p>
+              )}
+              {searchError && (
+                <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {searchError}
+                </p>
+              )}
+              {state.topicMode === 'trend' && state.researchSummary && (
+                <div className="mt-5 rounded-2xl border border-[#d4af64]/30 bg-[#faf8f1] p-5">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <h3 className="font-bold">已查證的近期素材</h3>
+                    {state.researchDate && (
+                      <span className="text-xs text-muted-foreground">
+                        搜尋日期：{state.researchDate}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-[#37332b]">
+                    {state.researchSummary}
                   </p>
-                )}
-                {searchError && (
-                  <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {searchError}
+                  {state.researchSources.length > 0 && (
+                    <div className="mt-5 border-t border-[#d4af64]/20 pt-4">
+                      <p className="text-sm font-bold">查證來源</p>
+                      <div className="mt-2 grid gap-2">
+                        {state.researchSources.map((source) => (
+                          <a
+                            key={source.url}
+                            href={source.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm font-semibold text-[#6f541f] underline underline-offset-4"
+                          >
+                            {source.title}
+                            <ExternalLink className="ml-1 inline size-3" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    這份研究已保存在本瀏覽器；重新整理後仍可直接產生選題。
                   </p>
-                )}
+                </div>
+              )}
             </section>
             {state.candidates.length > 0 && (
               <section className="mt-6">
@@ -706,10 +810,16 @@ export default function Home() {
                       <table className="w-full min-w-[820px] border-collapse text-left text-sm">
                         <thead className="bg-[#151515] text-white">
                           <tr>
-                            <th className="w-24 px-4 py-3 font-semibold">評分</th>
+                            <th className="w-24 px-4 py-3 font-semibold">
+                              評分
+                            </th>
                             <th className="px-4 py-3 font-semibold">選題</th>
-                            <th className="px-4 py-3 font-semibold">現金流切角</th>
-                            <th className="w-64 px-4 py-3 font-semibold">來源</th>
+                            <th className="px-4 py-3 font-semibold">
+                              現金流切角
+                            </th>
+                            <th className="w-64 px-4 py-3 font-semibold">
+                              來源
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -733,7 +843,8 @@ export default function Home() {
                                   className="flex w-full items-start gap-2 text-left font-bold leading-6 hover:text-[#8b6c2d]"
                                 >
                                   <span className="mt-1 grid size-4 shrink-0 place-items-center rounded-full border border-[#d4af64]">
-                                    {state.selectedTopic === candidate.title && (
+                                    {state.selectedTopic ===
+                                      candidate.title && (
                                       <Check className="size-3" />
                                     )}
                                   </span>
@@ -775,7 +886,10 @@ export default function Home() {
                       <button
                         key={candidate}
                         onClick={() =>
-                          update({ selectedTopic: candidate, selectedTitle: '' })
+                          update({
+                            selectedTopic: candidate,
+                            selectedTitle: '',
+                          })
                         }
                         className={`group flex items-center gap-4 rounded-2xl border p-4 text-left transition ${state.selectedTopic === candidate ? 'border-[#d4af64] bg-[#d4af64]/10' : 'bg-card hover:border-[#d4af64]/50'}`}
                       >
@@ -853,9 +967,7 @@ export default function Home() {
                   <section className="surface-card p-5 md:p-7">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-sm font-bold">
-                          三組縮圖企劃
-                        </p>
+                        <p className="text-sm font-bold">三組縮圖企劃</p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           圖片本身不放文字；大字建議留到 Canva 疊加。
                         </p>
@@ -868,7 +980,8 @@ export default function Home() {
                       </IconTile>
                     </div>
                     <p className="mt-5 rounded-2xl border border-dashed p-4 text-sm leading-6 text-muted-foreground">
-                      目前先完成縮圖方向、大字建議與 Canva 英文提示詞；不需要設定 API，也不會在平台內產生圖片。
+                      目前先完成縮圖方向、大字建議與 Canva
+                      英文提示詞；不需要設定 API，也不會在平台內產生圖片。
                     </p>
                     <div className="mt-5 grid gap-3">
                       {thumbIdeas.map((idea, index) => (
