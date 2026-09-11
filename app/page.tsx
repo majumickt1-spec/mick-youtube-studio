@@ -52,7 +52,7 @@ const steps = [
   { label: '選題雷達', detail: '靈感狀態＋方向＋痛點與來源', icon: Radar },
   {
     label: '縮圖生成',
-    detail: 'GPT Image 2 生成 3 組無字縮圖',
+    detail: 'GPT Image 2＋Nano Banana Pro 各 3 組',
     icon: ImageIcon,
   },
   { label: '腳本創作', detail: '口語腳本＋資訊欄文案', icon: NotebookPen },
@@ -140,6 +140,8 @@ type ThumbnailJob = {
   responseId: string;
 };
 
+type ThumbnailProvider = 'openai' | 'google';
+
 type SavedState = {
   videoName: string;
   topicMode: string;
@@ -156,7 +158,9 @@ type SavedState = {
   selectedTopic: string;
   selectedTitle: string;
   selectedThumb: number;
+  selectedThumbProvider: ThumbnailProvider;
   thumbnailJobs: ThumbnailJob[];
+  googleThumbnailJobs: ThumbnailJob[];
   scriptJobId: string;
   script: string;
   description: string;
@@ -181,7 +185,9 @@ const initialState: SavedState = {
   selectedTopic: '',
   selectedTitle: '',
   selectedThumb: 0,
+  selectedThumbProvider: 'openai',
   thumbnailJobs: [],
+  googleThumbnailJobs: [],
   scriptJobId: '',
   script: '',
   description: '',
@@ -273,9 +279,19 @@ export default function Home() {
     '',
     '',
   ]);
-  const [isGeneratingThumbnails, setIsGeneratingThumbnails] = useState(false);
-  const [thumbnailStatus, setThumbnailStatus] = useState('');
-  const [thumbnailError, setThumbnailError] = useState('');
+  const [googleThumbnailImages, setGoogleThumbnailImages] = useState<string[]>([
+    '',
+    '',
+    '',
+  ]);
+  const [generatingProvider, setGeneratingProvider] =
+    useState<ThumbnailProvider | null>(null);
+  const [thumbnailStatus, setThumbnailStatus] = useState<
+    Record<ThumbnailProvider, string>
+  >({ openai: '', google: '' });
+  const [thumbnailError, setThumbnailError] = useState<
+    Record<ThumbnailProvider, string>
+  >({ openai: '', google: '' });
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [scriptStatus, setScriptStatus] = useState('');
   const [scriptError, setScriptError] = useState('');
@@ -286,6 +302,35 @@ export default function Home() {
   const thumbIdeas =
     thumbIdeasByPillar[state.pillar as keyof typeof thumbIdeasByPillar] ||
     thumbIdeasByPillar.現金流管理;
+  const thumbnailProviders: Array<{
+    id: ThumbnailProvider;
+    name: string;
+    detail: string;
+    jobs: ThumbnailJob[];
+    images: string[];
+    extension: string;
+  }> = [
+    {
+      id: 'openai',
+      name: 'GPT Image 2',
+      detail: 'OpenAI｜1536×864 WebP',
+      jobs: state.thumbnailJobs,
+      images: thumbnailImages,
+      extension: 'webp',
+    },
+    {
+      id: 'google',
+      name: 'Nano Banana Pro',
+      detail: 'Google Gemini｜16:9 2K JPEG',
+      jobs: state.googleThumbnailJobs,
+      images: googleThumbnailImages,
+      extension: 'jpg',
+    },
+  ];
+  const selectedThumbnailImages =
+    state.selectedThumbProvider === 'openai'
+      ? thumbnailImages
+      : googleThumbnailImages;
   const completed = [
     Boolean(state.selectedTopic),
     Boolean(state.selectedTitle),
@@ -365,13 +410,15 @@ export default function Home() {
       selectedTopic: '',
       selectedTitle: '',
       thumbnailJobs: [],
+      googleThumbnailJobs: [],
       scriptJobId: '',
       script: '',
       description: '',
     });
     setThumbnailImages(['', '', '']);
-    setThumbnailStatus('');
-    setThumbnailError('');
+    setGoogleThumbnailImages(['', '', '']);
+    setThumbnailStatus({ openai: '', google: '' });
+    setThumbnailError({ openai: '', google: '' });
     setScriptStatus('');
     setScriptError('');
     setSearchPhase('');
@@ -391,12 +438,14 @@ export default function Home() {
   }
   function selectTopic(topic: string) {
     setThumbnailImages(['', '', '']);
-    setThumbnailStatus('');
-    setThumbnailError('');
+    setGoogleThumbnailImages(['', '', '']);
+    setThumbnailStatus({ openai: '', google: '' });
+    setThumbnailError({ openai: '', google: '' });
     update({
       selectedTopic: topic,
       selectedTitle: '',
       thumbnailJobs: [],
+      googleThumbnailJobs: [],
       scriptJobId: '',
       script: '',
       description: '',
@@ -406,13 +455,15 @@ export default function Home() {
   function selectTitle(title: string) {
     if (title === state.selectedTitle) return;
     setThumbnailImages(['', '', '']);
-    setThumbnailStatus('');
-    setThumbnailError('');
+    setGoogleThumbnailImages(['', '', '']);
+    setThumbnailStatus({ openai: '', google: '' });
+    setThumbnailError({ openai: '', google: '' });
     setScriptStatus('');
     setScriptError('');
     update({
       selectedTitle: title,
       thumbnailJobs: [],
+      googleThumbnailJobs: [],
       scriptJobId: '',
       script: '',
       description: '',
@@ -451,6 +502,7 @@ export default function Home() {
           selectedTopic: '',
           selectedTitle: '',
           thumbnailJobs: [],
+          googleThumbnailJobs: [],
           scriptJobId: '',
           script: '',
           description: '',
@@ -511,6 +563,7 @@ export default function Home() {
           selectedTopic: '',
           selectedTitle: '',
           thumbnailJobs: [],
+          googleThumbnailJobs: [],
           scriptJobId: '',
           script: '',
           description: '',
@@ -528,7 +581,13 @@ export default function Home() {
     }
   }
 
-  async function pollThumbnailJobs(jobs: ThumbnailJob[], code: string) {
+  async function pollThumbnailJobs(
+    provider: ThumbnailProvider,
+    jobs: ThumbnailJob[],
+    code: string,
+  ) {
+    const providerName =
+      provider === 'openai' ? 'GPT Image 2' : 'Nano Banana Pro';
     const pending = new Map(jobs.map((job) => [job.responseId, job]));
     const images = ['', '', ''];
     const failures: string[] = [];
@@ -540,6 +599,7 @@ export default function Home() {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
               phase: 'status',
+              provider,
               accessCode: code,
               responseId: job.responseId,
             }),
@@ -567,7 +627,11 @@ export default function Home() {
         }
       }
 
-      setThumbnailImages([...images]);
+      if (provider === 'openai') {
+        setThumbnailImages([...images]);
+      } else {
+        setGoogleThumbnailImages([...images]);
+      }
       const completedCount = images.filter(Boolean).length;
       if (pending.size === 0) {
         if (failures.length > 0) {
@@ -575,14 +639,16 @@ export default function Home() {
             `${completedCount} 組縮圖已完成；${failures.join('；')}`,
           );
         }
-        setThumbnailStatus(
-          `${completedCount} 組縮圖已完成。選定一組後可下載或進入腳本。`,
-        );
+        setThumbnailStatus((current) => ({
+          ...current,
+          [provider]: `${providerName} 的 ${completedCount} 組縮圖已完成。`,
+        }));
         return;
       }
-      setThumbnailStatus(
-        `GPT Image 2 正在背景生成（已完成 ${completedCount}/${jobs.length}）…`,
-      );
+      setThumbnailStatus((current) => ({
+        ...current,
+        [provider]: `${providerName} 正在背景生成（已完成 ${completedCount}/${jobs.length}）…`,
+      }));
       await new Promise((resolve) => window.setTimeout(resolve, 4000));
     }
     throw new Error(
@@ -590,33 +656,57 @@ export default function Home() {
     );
   }
 
-  async function generateThumbnails(forceNew = false) {
-    setThumbnailError('');
+  async function generateThumbnails(
+    provider: ThumbnailProvider,
+    forceNew = false,
+  ) {
+    const providerName =
+      provider === 'openai' ? 'GPT Image 2' : 'Nano Banana Pro';
+    setThumbnailError((current) => ({ ...current, [provider]: '' }));
     if (!state.selectedTitle) {
-      setThumbnailError('請先在左側選定一個影片標題。');
+      setThumbnailError((current) => ({
+        ...current,
+        [provider]: '請先在左側選定一個影片標題。',
+      }));
       return;
     }
     if (!accessCode.trim()) {
-      setThumbnailError('請先輸入平台使用碼。');
+      setThumbnailError((current) => ({
+        ...current,
+        [provider]: '請先輸入平台使用碼。',
+      }));
       return;
     }
 
-    setIsGeneratingThumbnails(true);
+    setGeneratingProvider(provider);
     window.sessionStorage.setItem('studio-access-code', accessCode.trim());
     try {
       const code = accessCode.trim();
-      let jobs = forceNew ? [] : state.thumbnailJobs;
+      let jobs = forceNew
+        ? []
+        : provider === 'openai'
+          ? state.thumbnailJobs
+          : state.googleThumbnailJobs;
       if (forceNew) {
-        setThumbnailImages(['', '', '']);
-        update({ thumbnailJobs: [] });
+        if (provider === 'openai') {
+          setThumbnailImages(['', '', '']);
+          update({ thumbnailJobs: [] });
+        } else {
+          setGoogleThumbnailImages(['', '', '']);
+          update({ googleThumbnailJobs: [] });
+        }
       }
       if (jobs.length === 0) {
-        setThumbnailStatus('正在建立三組 GPT Image 2 縮圖任務…');
+        setThumbnailStatus((current) => ({
+          ...current,
+          [provider]: `正在建立三組 ${providerName} 縮圖任務…`,
+        }));
         const response = await fetch('/api/thumbnails', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             phase: 'generate',
+            provider,
             accessCode: code,
             topic: state.selectedTopic,
             title: state.selectedTitle,
@@ -633,17 +723,28 @@ export default function Home() {
           throw new Error(data.error || '無法建立縮圖任務');
         }
         jobs = data.jobs;
-        update({ thumbnailJobs: jobs });
-        if (data.warning) setThumbnailError(data.warning);
+        update(
+          provider === 'openai'
+            ? { thumbnailJobs: jobs }
+            : { googleThumbnailJobs: jobs },
+        );
+        if (data.warning) {
+          setThumbnailError((current) => ({
+            ...current,
+            [provider]: data.warning || '',
+          }));
+        }
       }
-      await pollThumbnailJobs(jobs, code);
+      await pollThumbnailJobs(provider, jobs, code);
     } catch (error) {
-      setThumbnailStatus('');
-      setThumbnailError(
-        error instanceof Error ? error.message : '縮圖生成暫時無法使用',
-      );
+      setThumbnailStatus((current) => ({ ...current, [provider]: '' }));
+      setThumbnailError((current) => ({
+        ...current,
+        [provider]:
+          error instanceof Error ? error.message : '縮圖生成暫時無法使用',
+      }));
     } finally {
-      setIsGeneratingThumbnails(false);
+      setGeneratingProvider(null);
     }
   }
 
@@ -766,6 +867,7 @@ export default function Home() {
         selectedTopic: '',
         selectedTitle: '',
         thumbnailJobs: [],
+        googleThumbnailJobs: [],
         scriptJobId: '',
         script: '',
         description: '',
@@ -812,6 +914,7 @@ export default function Home() {
         selectedTopic: '',
         selectedTitle: '',
         thumbnailJobs: [],
+        googleThumbnailJobs: [],
         scriptJobId: '',
         script: '',
         description: '',
@@ -1260,8 +1363,8 @@ export default function Home() {
         <TabsContent value="1">
           <StageShell
             step="STEP 02"
-            eyebrow="GPT Image 2 直接產圖，中文字留到 Canva 疊加"
-            title="一次生成 3 組無字縮圖。"
+            eyebrow="兩個模型各自產圖，中文字留到後續疊加"
+            title="GPT Image 2 與 Nano Banana Pro，各生成 3 組無字縮圖。"
           >
             {!state.selectedTopic ? (
               <Blocked
@@ -1270,7 +1373,7 @@ export default function Home() {
               />
             ) : (
               <>
-                <div className="grid gap-5 xl:grid-cols-[.9fr_1.1fr]">
+                <div className="grid gap-5">
                   <section className="surface-card p-5 md:p-7">
                     <p className="text-sm font-bold">本集核心問題</p>
                     <p className="mt-2 text-xl font-black leading-8">
@@ -1296,152 +1399,173 @@ export default function Home() {
                       ))}
                     </div>
                   </section>
-                  <section className="surface-card p-5 md:p-7">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-bold">三組 AI 縮圖</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          16:9 無字圖；選定後下載，再到 Canva 疊加大字。
-                        </p>
-                        <Badge className="mt-3 border-[#d4af64]/40 bg-[#d4af64]/10 text-[#795d24]">
-                          GPT Image 2 已連接
-                        </Badge>
-                      </div>
-                      <IconTile>
-                        <ImageIcon className="size-5" />
-                      </IconTile>
-                    </div>
-                    <div className="mt-5 rounded-2xl border border-[#d4af64]/30 bg-[#faf8f1] p-4">
-                      <p className="text-sm font-semibold">
-                        會依本集主題與選定標題，生成三個不同畫面方向。
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        每次重新生成都會使用 OpenAI API
-                        額度；圖片不含文字、數字、標誌或浮水印。
-                      </p>
-                      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
-                        <Input
-                          type="password"
-                          value={accessCode}
-                          onChange={(event) =>
-                            setAccessCode(event.target.value)
-                          }
-                          placeholder="平台使用碼"
-                          autoComplete="current-password"
-                        />
-                        <Button
-                          className="gold-button"
-                          disabled={
-                            isGeneratingThumbnails || !state.selectedTitle
-                          }
-                          onClick={() =>
-                            void generateThumbnails(
-                              thumbnailImages.filter(Boolean).length > 0 &&
-                                thumbnailImages.filter(Boolean).length ===
-                                  state.thumbnailJobs.length,
-                            )
-                          }
+                  <div className="grid gap-5 xl:grid-cols-2">
+                    {thumbnailProviders.map((provider) => {
+                      const completedCount =
+                        provider.images.filter(Boolean).length;
+                      const isGenerating = generatingProvider === provider.id;
+                      return (
+                        <section
+                          key={provider.id}
+                          className="surface-card p-5 md:p-7"
                         >
-                          {isGeneratingThumbnails ? (
-                            <LoaderCircle className="size-4 animate-spin" />
-                          ) : (
-                            <WandSparkles className="size-4" />
-                          )}
-                          {isGeneratingThumbnails
-                            ? '生成中…'
-                            : state.thumbnailJobs.length > 0 &&
-                                thumbnailImages.filter(Boolean).length === 0
-                              ? '查看生成進度'
-                              : thumbnailImages.filter(Boolean).length > 0
-                                ? '重新生成 3 組'
-                                : '生成 3 組縮圖'}
-                        </Button>
-                      </div>
-                      {thumbnailStatus && (
-                        <p className="mt-3 text-sm font-semibold text-[#6f541f]">
-                          {thumbnailStatus}
-                        </p>
-                      )}
-                      {thumbnailError && (
-                        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                          {thumbnailError}
-                        </p>
-                      )}
-                    </div>
-                    <div className="mt-5 grid gap-3">
-                      {thumbIdeas.map((idea, index) => (
-                        <div
-                          key={idea.name}
-                          className={`overflow-hidden rounded-2xl border bg-white ${state.selectedThumb === index ? 'border-[#d4af64] ring-2 ring-[#d4af64]/25' : 'border-border'}`}
-                        >
-                          <div className="relative aspect-video bg-[#111]">
-                            {thumbnailImages[index] ? (
-                              <Image
-                                src={thumbnailImages[index]}
-                                alt={`第 ${index + 1} 組無字縮圖：${idea.name}`}
-                                fill
-                                sizes="(min-width: 1280px) 50vw, 100vw"
-                                unoptimized
-                                className="size-full object-cover"
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div>
+                              <p className="text-lg font-black">
+                                {provider.name}｜3 組縮圖
+                              </p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {provider.detail}｜無字、不同構圖
+                              </p>
+                              <Badge className="mt-3 border-[#d4af64]/40 bg-[#d4af64]/10 text-[#795d24]">
+                                {provider.id === 'openai'
+                                  ? 'OpenAI 已連接'
+                                  : '需設定 GEMINI_API_KEY'}
+                              </Badge>
+                            </div>
+                            <IconTile>
+                              <ImageIcon className="size-5" />
+                            </IconTile>
+                          </div>
+                          <div className="mt-5 rounded-2xl border border-[#d4af64]/30 bg-[#faf8f1] p-4">
+                            <p className="text-sm font-semibold">
+                              依相同主題分別生成：情緒特寫、生活場景、象徵對比。
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                              每次重新生成會使用 {provider.name} API
+                              額度；圖片不放任何可見文字、數字或標誌。
+                            </p>
+                            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                              <Input
+                                type="password"
+                                value={accessCode}
+                                onChange={(event) =>
+                                  setAccessCode(event.target.value)
+                                }
+                                placeholder="平台使用碼"
+                                autoComplete="current-password"
+                                aria-label={`${provider.name} 平台使用碼`}
                               />
-                            ) : (
-                              <div className="grid size-full place-items-center px-6 text-center text-sm text-white/60">
-                                <div>
-                                  {isGeneratingThumbnails ? (
-                                    <LoaderCircle className="mx-auto mb-3 size-7 animate-spin text-[#d4af64]" />
-                                  ) : (
-                                    <ImageIcon className="mx-auto mb-3 size-7 text-[#d4af64]" />
-                                  )}
-                                  {state.thumbnailJobs.some(
-                                    (job) => job.index === index,
+                              <Button
+                                className="gold-button"
+                                disabled={
+                                  generatingProvider !== null ||
+                                  !state.selectedTitle
+                                }
+                                onClick={() =>
+                                  void generateThumbnails(
+                                    provider.id,
+                                    completedCount > 0 &&
+                                      completedCount === provider.jobs.length,
                                   )
-                                    ? '等待 GPT Image 2 完成'
-                                    : '尚未生成'}
-                                </div>
-                              </div>
+                                }
+                              >
+                                {isGenerating ? (
+                                  <LoaderCircle className="size-4 animate-spin" />
+                                ) : (
+                                  <WandSparkles className="size-4" />
+                                )}
+                                {isGenerating
+                                  ? '生成中…'
+                                  : provider.jobs.length > 0 &&
+                                      completedCount === 0
+                                    ? '查看生成進度'
+                                    : completedCount > 0
+                                      ? '重新生成 3 組'
+                                      : '生成 3 組縮圖'}
+                              </Button>
+                            </div>
+                            {thumbnailStatus[provider.id] && (
+                              <p className="mt-3 text-sm font-semibold text-[#6f541f]">
+                                {thumbnailStatus[provider.id]}
+                              </p>
+                            )}
+                            {thumbnailError[provider.id] && (
+                              <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                {thumbnailError[provider.id]}
+                              </p>
                             )}
                           </div>
-                          <div className="p-4">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                              <button
-                                onClick={() => update({ selectedThumb: index })}
-                                className="text-left text-sm font-bold text-[#8b6c2d]"
-                              >
-                                {state.selectedThumb === index ? '✓ ' : ''}
-                                {idea.name}｜大字建議：{idea.text}
-                              </button>
-                              {thumbnailImages[index] && (
-                                <a
-                                  href={thumbnailImages[index]}
-                                  download={`mick-thumbnail-${index + 1}.webp`}
-                                  className="inline-flex items-center gap-1 text-xs font-bold text-[#6f541f] underline underline-offset-4"
+                          <div className="mt-5 grid gap-3">
+                            {thumbIdeas.map((idea, index) => {
+                              const isSelected =
+                                state.selectedThumbProvider === provider.id &&
+                                state.selectedThumb === index;
+                              return (
+                                <div
+                                  key={`${provider.id}-${idea.name}`}
+                                  className={`overflow-hidden rounded-2xl border bg-white ${isSelected ? 'border-[#d4af64] ring-2 ring-[#d4af64]/25' : 'border-border'}`}
                                 >
-                                  <Download className="size-3" />
-                                  下載圖片
-                                </a>
-                              )}
-                            </div>
-                            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                              畫面方向：{idea.scene}
-                            </p>
-                            <details className="mt-3 rounded-lg bg-[#f4f1e9] p-3 text-xs text-[#4c463a]">
-                              <summary className="cursor-pointer font-bold">
-                                Canva 英文提示詞
-                              </summary>
-                              <p className="mt-2 font-mono text-[11px] leading-5">
-                                {idea.prompt}
-                              </p>
-                            </details>
+                                  <div className="relative aspect-video bg-[#111]">
+                                    {provider.images[index] ? (
+                                      <Image
+                                        src={provider.images[index]}
+                                        alt={`${provider.name} 第 ${index + 1} 組無字縮圖：${idea.name}`}
+                                        fill
+                                        sizes="(min-width: 1280px) 40vw, 100vw"
+                                        unoptimized
+                                        className="size-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="grid size-full place-items-center px-6 text-center text-sm text-white/60">
+                                        <div>
+                                          {isGenerating ? (
+                                            <LoaderCircle className="mx-auto mb-3 size-7 animate-spin text-[#d4af64]" />
+                                          ) : (
+                                            <ImageIcon className="mx-auto mb-3 size-7 text-[#d4af64]" />
+                                          )}
+                                          {provider.jobs.some(
+                                            (job) => job.index === index,
+                                          )
+                                            ? `等待 ${provider.name} 完成`
+                                            : '尚未生成'}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="p-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                      <button
+                                        onClick={() =>
+                                          update({
+                                            selectedThumb: index,
+                                            selectedThumbProvider: provider.id,
+                                          })
+                                        }
+                                        className="text-left text-sm font-bold text-[#8b6c2d]"
+                                      >
+                                        {isSelected ? '✓ ' : ''}
+                                        {idea.name}｜大字：{idea.text}
+                                      </button>
+                                      {provider.images[index] && (
+                                        <a
+                                          href={provider.images[index]}
+                                          download={`mick-${provider.id}-thumbnail-${index + 1}.${provider.extension}`}
+                                          className="inline-flex items-center gap-1 text-xs font-bold text-[#6f541f] underline underline-offset-4"
+                                        >
+                                          <Download className="size-3" />
+                                          下載
+                                        </a>
+                                      )}
+                                    </div>
+                                    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                                      構圖 {String.fromCharCode(65 + index)}：
+                                      {idea.scene}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
+                        </section>
+                      );
+                    })}
+                  </div>
                 </div>
                 <NextButton
                   disabled={
                     !state.selectedTitle ||
-                    !thumbnailImages[state.selectedThumb]
+                    !selectedThumbnailImages[state.selectedThumb]
                   }
                   onClick={() => go(2)}
                 >
