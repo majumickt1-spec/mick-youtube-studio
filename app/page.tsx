@@ -144,6 +144,7 @@ type SavedState = {
   researchSummary: string;
   researchSources: ResearchSource[];
   researchDate: string;
+  researchJobId: string;
   candidates: string[];
   candidateDetails: TopicCandidate[];
   selectedTopic: string;
@@ -166,6 +167,7 @@ const initialState: SavedState = {
   researchSummary: '',
   researchSources: [],
   researchDate: '',
+  researchJobId: '',
   candidates: [],
   candidateDetails: [],
   selectedTopic: '',
@@ -348,6 +350,7 @@ export default function Home() {
       researchSummary: '',
       researchSources: [],
       researchDate: '',
+      researchJobId: '',
       candidates: [],
       candidateDetails: [],
       selectedTopic: '',
@@ -368,6 +371,50 @@ export default function Home() {
   function copyText(text: string, message: string) {
     void navigator.clipboard.writeText(text).then(() => setNotice(message));
   }
+  async function pollResearch(responseId: string, code: string) {
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      const response = await fetch('/api/topic-radar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          phase: 'researchStatus',
+          accessCode: code,
+          responseId,
+        }),
+      });
+      const data = (await response.json()) as {
+        status?: string;
+        research?: string;
+        sources?: ResearchSource[];
+        searchedAt?: string;
+        error?: string;
+      };
+      if (!response.ok) {
+        update({ researchJobId: '' });
+        throw new Error(data.error || '無法查詢搜尋進度');
+      }
+      if (data.status === 'completed' && data.research) {
+        update({
+          researchJobId: '',
+          researchSummary: data.research,
+          researchSources: data.sources || [],
+          researchDate: data.searchedAt || '',
+          candidates: [],
+          candidateDetails: [],
+          selectedTopic: '',
+          selectedTitle: '',
+        });
+        setSearchPhase('查證完成。請檢視素材，再按第二步產生選題。');
+        return;
+      }
+      setSearchPhase('OpenAI 正在背景搜尋並查證近期熱點…');
+      await new Promise((resolve) => window.setTimeout(resolve, 3000));
+    }
+    throw new Error(
+      '搜尋仍在背景執行。稍後再按「查看搜尋進度」，不會重新計費或重複搜尋。',
+    );
+  }
+
   async function researchTrends() {
     setSearchError('');
     if (!accessCode.trim()) {
@@ -379,15 +426,16 @@ export default function Home() {
     setActiveSearchAction('research');
     window.sessionStorage.setItem('studio-access-code', accessCode.trim());
     try {
-      setSearchPhase('正在同時執行 3 組近期熱點查證…');
-      const researchTasks = [1, 2, 3].map(async (researchSlot) => {
+      const code = accessCode.trim();
+      let responseId = state.researchJobId;
+      if (!responseId) {
+        setSearchPhase('正在建立 OpenAI 背景搜尋任務…');
         const response = await fetch('/api/topic-radar', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             phase: 'research',
-            researchSlot,
-            accessCode: accessCode.trim(),
+            accessCode: code,
             pillar: state.pillar,
             keyword: state.keyword,
             supplement: state.supplement,
@@ -395,60 +443,25 @@ export default function Home() {
           }),
         });
         const data = (await response.json()) as {
-          research?: string;
-          sources?: ResearchSource[];
-          searchedAt?: string;
+          responseId?: string;
           error?: string;
         };
-        if (!response.ok || !data.research) {
-          throw new Error(data.error || `第 ${researchSlot} 組查證失敗`);
+        if (!response.ok || !data.responseId) {
+          throw new Error(data.error || '無法建立背景搜尋任務');
         }
-        return { ...data, researchSlot };
-      });
-      const settled = await Promise.allSettled(researchTasks);
-      const completedResearch = settled
-        .filter(
-          (
-            result,
-          ): result is PromiseFulfilledResult<
-            Awaited<(typeof researchTasks)[number]>
-          > => result.status === 'fulfilled',
-        )
-        .map((result) => result.value);
-      if (completedResearch.length === 0) {
-        const firstFailure = settled.find(
-          (result): result is PromiseRejectedResult =>
-            result.status === 'rejected',
-        );
-        throw new Error(
-          firstFailure?.reason instanceof Error
-            ? firstFailure.reason.message
-            : '3 組網路查證都沒有成功，請稍後再試一次。',
-        );
+        responseId = data.responseId;
+        update({
+          researchJobId: responseId,
+          researchSummary: '',
+          researchSources: [],
+          researchDate: '',
+          candidates: [],
+          candidateDetails: [],
+          selectedTopic: '',
+          selectedTitle: '',
+        });
       }
-      const sourceMap = new Map<string, ResearchSource>();
-      for (const item of completedResearch) {
-        for (const source of item.sources || []) {
-          sourceMap.set(source.url, source);
-        }
-      }
-      update({
-        researchSummary: completedResearch
-          .sort((a, b) => a.researchSlot - b.researchSlot)
-          .map((item) => `【第 ${item.researchSlot} 組查證】\n${item.research}`)
-          .join('\n\n'),
-        researchSources: [...sourceMap.values()],
-        researchDate: completedResearch[0].searchedAt || '',
-        candidates: [],
-        candidateDetails: [],
-        selectedTopic: '',
-        selectedTitle: '',
-      });
-      setSearchPhase(
-        completedResearch.length === 3
-          ? '3 組查證完成。請檢視素材，再按第二步產生選題。'
-          : `已保留 ${completedResearch.length}/3 組成功結果；可直接產生選題，或重新搜尋補齊。`,
-      );
+      await pollResearch(responseId, code);
     } catch (error) {
       setSearchPhase('');
       setSearchError(
@@ -728,11 +741,11 @@ export default function Home() {
                     type="password"
                     value={accessCode}
                     onChange={(event) => setAccessCode(event.target.value)}
-                    placeholder="用來保護你的 Anthropic API 額度"
+                    placeholder="用來保護你的 OpenAI API 額度"
                     autoComplete="current-password"
                   />
                   <p className="mt-2 text-xs text-muted-foreground">
-                    這不是 Anthropic API Key，只會暫存在目前瀏覽器分頁。
+                    這不是 OpenAI API Key，只會暫存在目前瀏覽器分頁。
                   </p>
                 </Field>
               )}
@@ -749,7 +762,9 @@ export default function Home() {
                     ) : (
                       <Radar className="size-4" />
                     )}
-                    第一步：搜尋並查證近期熱點
+                    {state.researchJobId && !state.researchSummary
+                      ? '查看搜尋進度'
+                      : '第一步：搜尋並查證近期熱點'}
                   </Button>
                   <Button
                     size="lg"

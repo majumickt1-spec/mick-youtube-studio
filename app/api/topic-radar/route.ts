@@ -1,23 +1,28 @@
 export const maxDuration = 60;
 
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const DEFAULT_MODEL = 'claude-sonnet-4-6';
+const OPENAI_URL = 'https://api.openai.com/v1';
+const DEFAULT_MODEL = 'gpt-5.6-luna';
 
-type AnthropicBlock = {
+type OpenAIContent = {
   type?: string;
   text?: string;
-  citations?: Array<{
-    type?: string;
-    url?: string;
-    title?: string;
-    cited_text?: string;
-  }>;
+  annotations?: Array<{ type?: string; url?: string; title?: string }>;
 };
 
-type AnthropicResponse = {
-  content?: AnthropicBlock[];
-  stop_reason?: string;
+type OpenAIOutput = {
+  type?: string;
+  content?: OpenAIContent[];
+  action?: {
+    sources?: Array<{ type?: string; url?: string; title?: string }>;
+  };
+};
+
+type OpenAIResponse = {
+  id?: string;
+  status?: string;
+  output?: OpenAIOutput[];
   error?: { message?: string };
+  incomplete_details?: { reason?: string };
 };
 
 type Source = {
@@ -26,24 +31,33 @@ type Source = {
   excerpt: string;
 };
 
-function textFrom(response: AnthropicResponse) {
-  return (response.content || [])
-    .filter((block) => block.type === 'text' && block.text)
-    .map((block) => block.text)
+function textFrom(response: OpenAIResponse) {
+  return (response.output || [])
+    .flatMap((item) => item.content || [])
+    .filter((content) => content.type === 'output_text' && content.text)
+    .map((content) => content.text)
     .join('\n')
     .trim();
 }
 
-function sourcesFrom(responses: AnthropicResponse[]) {
+function sourcesFrom(response: OpenAIResponse) {
   const sources = new Map<string, Source>();
-  for (const response of responses) {
-    for (const block of response.content || []) {
-      for (const citation of block.citations || []) {
-        if (!citation.url || sources.has(citation.url)) continue;
-        sources.set(citation.url, {
-          title: citation.title?.trim() || '未命名來源',
-          url: citation.url,
-          excerpt: citation.cited_text?.trim() || '',
+  for (const output of response.output || []) {
+    for (const source of output.action?.sources || []) {
+      if (!source.url || sources.has(source.url)) continue;
+      sources.set(source.url, {
+        title: source.title?.trim() || '未命名來源',
+        url: source.url,
+        excerpt: '',
+      });
+    }
+    for (const content of output.content || []) {
+      for (const annotation of content.annotations || []) {
+        if (!annotation.url || sources.has(annotation.url)) continue;
+        sources.set(annotation.url, {
+          title: annotation.title?.trim() || '未命名來源',
+          url: annotation.url,
+          excerpt: '',
         });
       }
     }
@@ -51,24 +65,23 @@ function sourcesFrom(responses: AnthropicResponse[]) {
   return [...sources.values()].slice(0, 12);
 }
 
-async function callAnthropic(
+async function openAIRequest(
   apiKey: string,
-  payload: Record<string, unknown>,
-  signal = AbortSignal.timeout(50_000),
+  path: string,
+  init: RequestInit,
+  timeout = 20_000,
 ) {
-  const response = await fetch(ANTHROPIC_URL, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify(payload),
-    signal,
+  const headers = new Headers(init.headers);
+  headers.set('authorization', `Bearer ${apiKey}`);
+  headers.set('content-type', 'application/json');
+  const response = await fetch(`${OPENAI_URL}${path}`, {
+    ...init,
+    headers,
+    signal: AbortSignal.timeout(timeout),
   });
-  const data = (await response.json()) as AnthropicResponse;
+  const data = (await response.json()) as OpenAIResponse;
   if (!response.ok) {
-    throw new Error(data.error?.message || 'Anthropic API 暫時無法使用');
+    throw new Error(data.error?.message || 'OpenAI API 暫時無法使用');
   }
   return data;
 }
@@ -90,9 +103,40 @@ function validString(value: unknown, maxLength: number) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
 
+function researchPrompt(
+  pillar: string,
+  keyword: string,
+  supplement: string,
+  references: string,
+  today: string,
+) {
+  const fallbackFocus =
+    pillar === '現金流管理'
+      ? '台灣房貸、家庭支出、就業、通膨、保險與現金流風險'
+      : '台灣 AI 工具、數位產品、內容資產、副業收入與工作流';
+  return `今天是 ${today}（台北時間）。請使用網頁搜尋，替台灣 YouTube 頻道「米克大叔」查證最近 30 天可用的選題素材。
+
+頻道核心：現金流。AI 只是建立副業資產、降低薪水依賴的手段。
+受眾：35–55 歲、有家庭責任、主要收入來自薪水的台灣上班族。
+創作方向：${pillar}
+觀眾痛點：${keyword || '未提供，請依創作方向尋找近期熱點'}
+補充：${supplement || '未提供'}
+對標影片或參考來源：${references || '未提供'}
+無明確輸入時的搜尋焦點：${fallbackFocus}
+
+搜尋時最多使用 3 組聚焦查詢，依序考慮：
+1. 觀眾痛點或補充說明最近 30 天的台灣新聞。
+2. 與創作方向相關的台灣政府、研究機構或原始統計資料。
+3. 相關產業趨勢、主要媒體報導與生活案例。
+
+優先台灣政府、研究機構、主要媒體與原始發布來源。只整理能由搜尋結果支持的事實，不可用既有記憶補新聞，不可捏造日期或數字。找不到合格來源時，明確寫「查無足夠的近 30 天來源」。
+
+請用精簡繁體中文輸出最多 8 筆研究摘要，每筆包含：事件、發布日期、與家庭現金流的關聯、可切入的觀眾痛點。這一步只整理研究，不要產生影片標題。`;
+}
+
 export async function POST(request: Request) {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     const studioCode = process.env.STUDIO_ACCESS_CODE;
     if (!apiKey || !studioCode) {
       return Response.json(
@@ -111,97 +155,82 @@ export async function POST(request: Request) {
     const keyword = validString(body.keyword, 500);
     const supplement = validString(body.supplement, 1500);
     const references = validString(body.references, 1500);
-    const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
+    const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
 
     if (phase === 'research') {
       if (!['現金流管理', 'AI資產建立'].includes(pillar)) {
         return Response.json({ error: '創作方向不正確。' }, { status: 400 });
       }
-
-      const fallbackFocus =
-        pillar === '現金流管理'
-          ? '台灣房貸、家庭支出、就業、通膨、保險與現金流風險'
-          : '台灣 AI 工具、數位產品、內容資產、副業收入與工作流';
-      const requestedSlot = Number(body.researchSlot);
-      const researchSlot =
-        Number.isInteger(requestedSlot) &&
-        requestedSlot >= 1 &&
-        requestedSlot <= 3
-          ? requestedSlot
-          : 1;
-      const searchFocus = [
-        `優先查「${keyword || fallbackFocus}」最近 30 天的台灣新聞與事件`,
-        `優先查與「${pillar}」相關的台灣政府、研究機構或原始統計資料`,
-        `優先查「${supplement || fallbackFocus}」相關的台灣產業趨勢、主要媒體報導與生活案例`,
-      ][researchSlot - 1];
       const today = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Taipei',
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
       }).format(new Date());
-      const prompt = `今天是 ${today}（台北時間）。請務必使用網頁搜尋，替台灣 YouTube 頻道「米克大叔」查證最近 30 天可用的選題素材。
-
-頻道核心：現金流。AI 只是建立副業資產、降低薪水依賴的手段。
-受眾：35–55 歲、有家庭責任、主要收入來自薪水的台灣上班族。
-創作方向：${pillar}
-觀眾痛點：${keyword || '未提供，請依創作方向尋找近期熱點'}
-補充：${supplement || '未提供'}
-對標影片或參考來源：${references || '未提供'}
-無明確輸入時的搜尋焦點：${fallbackFocus}
-
-這是第 ${researchSlot} 組獨立查證，搜尋重點：${searchFocus}。
-只執行 1 次聚焦搜尋，優先台灣政府、研究機構、主要媒體與原始發布來源。只整理能由搜尋結果支持的事實，不可用既有記憶補新聞，不可捏造日期或數字。若找不到合格來源，明確寫「查無足夠的近 30 天來源」。
-
-請用精簡繁體中文輸出最多 3 筆研究摘要，每筆包含：事件、發布日期、與家庭現金流的關聯、可切入的觀眾痛點。這一步只整理研究，不要產生影片標題。`;
-
-      const messages: Array<Record<string, unknown>> = [
-        { role: 'user', content: prompt },
-      ];
-      const tools = [
-        {
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: 1,
-          user_location: {
-            type: 'approximate',
-            country: 'TW',
-            timezone: 'Asia/Taipei',
-          },
-        },
-      ];
-      const searchDeadline = AbortSignal.timeout(52_000);
-      let result = await callAnthropic(
-        apiKey,
-        {
+      const result = await openAIRequest(apiKey, '/responses', {
+        method: 'POST',
+        body: JSON.stringify({
           model,
-          max_tokens: 900,
-          messages,
-          tools,
-        },
-        searchDeadline,
-      );
-      const researchTurns = [result];
-      if (result.stop_reason === 'pause_turn' && result.content) {
-        messages.push({ role: 'assistant', content: result.content });
-        messages.push({ role: 'user', content: '請繼續並完成研究摘要。' });
-        result = await callAnthropic(
-          apiKey,
-          {
-            model,
-            max_tokens: 700,
-            messages,
-            tools,
-          },
-          searchDeadline,
-        );
-        researchTurns.push(result);
-      }
+          background: true,
+          store: true,
+          reasoning: { effort: 'low' },
+          tools: [
+            {
+              type: 'web_search',
+              search_context_size: 'low',
+              user_location: {
+                type: 'approximate',
+                country: 'TW',
+                city: 'Taipei',
+                region: 'Taiwan',
+              },
+            },
+          ],
+          include: ['web_search_call.action.sources'],
+          input: researchPrompt(pillar, keyword, supplement, references, today),
+        }),
+      });
+      if (!result.id) throw new Error('未取得背景搜尋任務編號');
+      return Response.json({ responseId: result.id, status: result.status });
+    }
 
-      const research = researchTurns.map(textFrom).filter(Boolean).join('\n');
-      const sources = sourcesFrom(researchTurns);
+    if (phase === 'researchStatus') {
+      const responseId = validString(body.responseId, 200);
+      if (!/^resp_[A-Za-z0-9_-]+$/.test(responseId)) {
+        return Response.json(
+          { error: '搜尋任務編號不正確。' },
+          { status: 400 },
+        );
+      }
+      const result = await openAIRequest(
+        apiKey,
+        `/responses/${encodeURIComponent(responseId)}`,
+        { method: 'GET' },
+      );
+      if (result.status === 'queued' || result.status === 'in_progress') {
+        return Response.json({ status: result.status });
+      }
+      if (result.status !== 'completed') {
+        throw new Error(
+          result.error?.message ||
+            result.incomplete_details?.reason ||
+            '背景搜尋未能完成，請重新開始。',
+        );
+      }
+      const research = textFrom(result);
       if (!research) throw new Error('沒有取得可用的研究摘要');
-      return Response.json({ research, sources, searchedAt: today });
+      const searchedAt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+      return Response.json({
+        status: 'completed',
+        research,
+        sources: sourcesFrom(result),
+        searchedAt,
+      });
     }
 
     if (phase === 'topics') {
@@ -247,11 +276,20 @@ ${sourceList || '沒有取得可引用來源'}
 
 只輸出 JSON 陣列，不要 Markdown、不要前言：
 [{"title":"影片選題","angle":"為什麼觀眾會在意，以及現金流切角","sourceIndex":1,"publishedAt":"YYYY-MM-DD；研究摘要未明示時填日期未確認","score":5}]`;
-      const result = await callAnthropic(apiKey, {
-        model,
-        max_tokens: 2400,
-        messages: [{ role: 'user', content: prompt }],
-      });
+      const result = await openAIRequest(
+        apiKey,
+        '/responses',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            model,
+            reasoning: { effort: 'low' },
+            max_output_tokens: 2400,
+            input: prompt,
+          }),
+        },
+        52_000,
+      );
       const rawCandidates = parseJsonArray(textFrom(result));
       const candidates = rawCandidates
         .map((candidate) => {
@@ -290,7 +328,7 @@ ${sourceList || '沒有取得可引用來源'}
     const message =
       error instanceof DOMException &&
       (error.name === 'TimeoutError' || error.name === 'AbortError')
-        ? '網路熱點搜尋超過等待時間，請稍後再試一次。'
+        ? '服務連線超過等待時間，請稍後再試一次。'
         : error instanceof Error
           ? error.message
           : '選題雷達暫時無法使用';
