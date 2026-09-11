@@ -110,8 +110,8 @@ ${sourceList}
 
 【資訊欄規格】
 - 約 350–600 個繁體中文字。
-- 包含本集摘要、觀眾會帶走的 3 點、單一 CTA、實際引用過的來源清單、3–5 個相關 Hashtag。
-- 不虛構時間軸、網址或來源；沒有引用就寫「本集未引用外部數據」。
+- 包含本集摘要、觀眾會帶走的 3 點、單一 CTA、品牌句與 3–5 個相關 Hashtag。
+- 不在資訊欄顯示參考來源、資料來源、引用網址或來源清單。
 - 必須使用下面的純文字版型與空行，讓使用者可以直接貼進 YouTube 資訊欄；不要使用 Markdown 表格，也不要把所有內容擠成單一段落：
 
 【本集內容】
@@ -126,14 +126,10 @@ ${sourceList}
 家庭資產負債表 Excel
 👉 〔上架前補入已確認連結〕
 
-【資料來源】
-- 實際使用的來源名稱與網址，一項一行
-若沒有引用，改寫「本集未引用外部數據」。
-
 管理現金流｜降低薪水依賴｜拿回人生選擇權
 
 #標籤1 #標籤2 #標籤3
-- 標題、段落、編號、CTA、來源、品牌句與 Hashtag 之間都必須保留上述換行；不要加「以下是資訊欄文案」等前言。
+- 標題、段落、編號、CTA、品牌句與 Hashtag 之間都必須保留上述換行；不要加「以下是資訊欄文案」等前言。
 
 只輸出符合指定 JSON Schema 的內容，不要在 JSON 外加任何說明。`;
 }
@@ -144,7 +140,10 @@ function parsePackage(text: string) {
     description?: unknown;
   };
   const script = validString(parsed.script, 24_000);
-  const description = validString(parsed.description, 8_000);
+  const description = validString(parsed.description, 8_000).replace(
+    /\n*【(?:資料來源|參考來源|參考資料)】[\s\S]*?(?=\n+(?:管理現金流｜降低薪水依賴｜拿回人生選擇權|#)|$)/g,
+    '\n\n',
+  );
   if (!script || !description) throw new Error('腳本結果格式不完整');
   return { script, description };
 }

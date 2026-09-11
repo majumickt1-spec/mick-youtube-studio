@@ -196,6 +196,15 @@ const initialState: SavedState = {
   igCopy: '',
 };
 
+function removeDescriptionSources(description: string) {
+  return description
+    .replace(
+      /\n*【(?:資料來源|參考來源|參考資料)】[\s\S]*?(?=\n+(?:管理現金流｜降低薪水依賴｜拿回人生選擇權|#)|$)/g,
+      '\n\n',
+    )
+    .trim();
+}
+
 function makeCandidates(keyword: string, pillar: string, topicMode: string) {
   const focus = keyword.trim() || '降低薪水依賴';
   if (pillar === 'AI資產建立') {
@@ -367,7 +376,12 @@ export default function Home() {
       const saved = window.localStorage.getItem('mick-youtube-studio-v4');
       if (saved) {
         try {
-          setState({ ...initialState, ...JSON.parse(saved) });
+          const restored = JSON.parse(saved) as Partial<SavedState>;
+          setState({
+            ...initialState,
+            ...restored,
+            description: removeDescriptionSources(restored.description || ''),
+          });
         } catch {
           /* preserve a fresh safe state */
         }
@@ -844,7 +858,7 @@ export default function Home() {
         update({
           scriptJobId: '',
           script: data.script,
-          description: data.description,
+          description: removeDescriptionSources(data.description),
           editPlan: '',
           fbCopy: '',
           igCopy: '',
@@ -1751,12 +1765,12 @@ export default function Home() {
                           }
                         >
                           <Copy className="size-4" />
-                          一鍵複製
+                          複製
                         </Button>
                       )}
                     </div>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      已依摘要、三個收穫、免費工具、資料來源、品牌句與標籤分段排版，可直接貼到
+                      已依摘要、三個收穫、免費工具、品牌句與標籤分段排版，可直接貼到
                       YouTube。
                     </p>
                     <Textarea
@@ -1828,7 +1842,7 @@ export default function Home() {
                       }
                     >
                       <Copy className="size-4" />
-                      複製剪輯任務
+                      複製
                     </Button>
                   )}
                 </section>
