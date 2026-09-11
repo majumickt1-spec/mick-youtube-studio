@@ -28,9 +28,19 @@ type GeminiInteraction = {
   status?: string;
   steps?: Array<{ type?: string; content?: GeminiContent[] }>;
   output_image?: GeminiContent;
-  error?: { message?: string };
+  error?: { code?: number; message?: string; status?: string } | string;
   errors?: Array<{ message?: string }>;
 };
+
+function geminiErrorMessage(data: GeminiInteraction, response: Response) {
+  if (typeof data.error === 'string' && data.error.trim()) return data.error;
+  if (data.error && typeof data.error === 'object' && data.error.message) {
+    return data.error.message;
+  }
+  const nestedMessage = data.errors?.find((error) => error.message)?.message;
+  if (nestedMessage) return nestedMessage;
+  return `Google Gemini 回應錯誤（${response.status} ${response.statusText || 'Unknown'}）`;
+}
 
 function validString(value: unknown, maxLength: number) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
@@ -76,13 +86,20 @@ async function geminiRequest(
     headers,
     signal: AbortSignal.timeout(timeout),
   });
-  const data = (await response.json()) as GeminiInteraction;
+  const raw = await response.text();
+  let data: GeminiInteraction = {};
+  try {
+    data = raw ? (JSON.parse(raw) as GeminiInteraction) : {};
+  } catch {
+    if (!response.ok) {
+      throw new Error(
+        `Google Gemini 回應錯誤（${response.status} ${response.statusText || 'Unknown'}）`,
+      );
+    }
+    throw new Error('Google Gemini 回傳了無法辨識的結果。');
+  }
   if (!response.ok) {
-    throw new Error(
-      data.error?.message ||
-        data.errors?.find((error) => error.message)?.message ||
-        'Nano Banana Pro 暫時無法使用',
-    );
+    throw new Error(geminiErrorMessage(data, response));
   }
   return data;
 }
@@ -123,6 +140,16 @@ function geminiImageFrom(interaction: GeminiInteraction) {
     imageBase64: image.data,
     mimeType: image.mime_type || image.mimeType || 'image/jpeg',
   };
+}
+
+export async function GET() {
+  return Response.json(
+    {
+      openai: Boolean(process.env.OPENAI_API_KEY),
+      google: Boolean(process.env.GEMINI_API_KEY),
+    },
+    { headers: { 'cache-control': 'no-store' } },
+  );
 }
 
 export async function POST(request: Request) {
@@ -302,7 +329,9 @@ export async function POST(request: Request) {
       }
       if (result.status !== 'completed') {
         throw new Error(
-          result.error?.message ||
+          (typeof result.error === 'object'
+            ? result.error?.message
+            : result.error) ||
             result.errors?.find((error) => error.message)?.message ||
             'Nano Banana Pro 縮圖生成未能完成。',
         );

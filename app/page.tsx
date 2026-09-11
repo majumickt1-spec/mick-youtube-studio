@@ -292,6 +292,9 @@ export default function Home() {
   const [thumbnailError, setThumbnailError] = useState<
     Record<ThumbnailProvider, string>
   >({ openai: '', google: '' });
+  const [thumbnailConnections, setThumbnailConnections] = useState<
+    Record<ThumbnailProvider, boolean | null>
+  >({ openai: null, google: null });
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [scriptStatus, setScriptStatus] = useState('');
   const [scriptError, setScriptError] = useState('');
@@ -338,6 +341,26 @@ export default function Home() {
     Boolean(state.editPlan),
     Boolean(state.fbCopy) && Boolean(state.igCopy),
   ];
+
+  useEffect(() => {
+    void fetch('/api/thumbnails', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('connection check failed');
+        return (await response.json()) as {
+          openai?: boolean;
+          google?: boolean;
+        };
+      })
+      .then((connections) => {
+        setThumbnailConnections({
+          openai: Boolean(connections.openai),
+          google: Boolean(connections.google),
+        });
+      })
+      .catch(() => {
+        setThumbnailConnections({ openai: null, google: null });
+      });
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -1418,9 +1441,11 @@ export default function Home() {
                                 {provider.detail}｜無字、不同構圖
                               </p>
                               <Badge className="mt-3 border-[#d4af64]/40 bg-[#d4af64]/10 text-[#795d24]">
-                                {provider.id === 'openai'
-                                  ? 'OpenAI 已連接'
-                                  : '需設定 GEMINI_API_KEY'}
+                                {thumbnailConnections[provider.id] === null
+                                  ? '正在確認連線'
+                                  : thumbnailConnections[provider.id]
+                                    ? `${provider.id === 'openai' ? 'OpenAI' : 'Google API'} 已連接`
+                                    : `需設定 ${provider.id === 'openai' ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY'}`}
                               </Badge>
                             </div>
                             <IconTile>
