@@ -1738,9 +1738,26 @@ export default function Home() {
                     />
                   </section>
                   <section className="surface-card p-5 md:p-7">
-                    <p className="text-sm font-bold">YouTube 資訊欄</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-bold">YouTube 資訊欄</p>
+                      {state.description && (
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            copyText(
+                              state.description,
+                              'YouTube 資訊欄文案已複製。',
+                            )
+                          }
+                        >
+                          <Copy className="size-4" />
+                          一鍵複製
+                        </Button>
+                      )}
+                    </div>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      保留影片摘要、品牌句與必要標籤；影片網址與資源連結上架前再補。
+                      已依摘要、三個收穫、免費工具、資料來源、品牌句與標籤分段排版，可直接貼到
+                      YouTube。
                     </p>
                     <Textarea
                       aria-label="YouTube 資訊欄文案"
