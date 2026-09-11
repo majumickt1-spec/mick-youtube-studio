@@ -157,6 +157,7 @@ type SavedState = {
   selectedTitle: string;
   selectedThumb: number;
   thumbnailJobs: ThumbnailJob[];
+  scriptJobId: string;
   script: string;
   description: string;
   editPlan: string;
@@ -181,6 +182,7 @@ const initialState: SavedState = {
   selectedTitle: '',
   selectedThumb: 0,
   thumbnailJobs: [],
+  scriptJobId: '',
   script: '',
   description: '',
   editPlan: '',
@@ -242,18 +244,6 @@ function makeTitles(topic: string, pillar: string) {
   ];
 }
 
-function buildScript(state: SavedState) {
-  const title = state.selectedTitle || state.selectedTopic || '本集主題待確認';
-  const supplement = state.supplement.trim() || '〔未提供額外補充〕';
-  const sources = state.sources.trim() || '〔未提供參考來源〕';
-  return `# ${title}\n\n## ▌Hook\n如果有一天薪水消失了，你現在擁有的現金流，能不能繼續支撐生活？這一集，我們不追最新工具，也不追最高報酬，而是看這件事能不能降低你對薪水的依賴。\n\n## ▌觀眾痛點\n${state.keyword}\n\n## ▌米克大叔補充\n${supplement}\n\n## ▌參考來源\n${sources}\n\n## ▌重新理解問題\n頻道的核心不是投資，也不是 AI 副業，而是現金流。資產與負債要看它每個月帶來或拿走多少現金；AI 則是普通上班族建立副業資產、增加非工資收入的手段。\n\n## ▌方法\n把方法放回這一條路：先守住家庭現金流，再把副業收入變成可累積的資產。1 倍是財富自由的門檻，2 倍才有可以掉、可以修、可以等、可以拒絕的餘裕。\n\n## ▌最小行動\n依這次痛點整理一個觀眾今天晚上就能開始的具體步驟。\n\n## ▌CTA\n依本集內容只保留一個已確認可用的行動或資源；連結上架前再次核對，不放未核實網址。\n\n## ▌定位管理確認\n核心：現金流｜方法：管理現金流＋建立 AI 副業資產｜終點：非工資收入 ≥ 2×總支出，拿回人生選擇權。\n\n## ▌試讀提醒\n把這份稿念出來。凡是你平常不會說的句子，就改回你的原話；沒有親身經歷的故事，不要補。`;
-}
-
-function buildDescription(state: SavedState) {
-  const title = state.selectedTitle || state.selectedTopic;
-  return `${title}\n\n如果有一天薪水消失，你現在的現金流能不能繼續支撐生活？這支影片會從「${state.pillar}」出發，陪你看懂如何改善現金流、降低薪水依賴。\n\n這集你會帶走：\n・重新理解問題的現金流視角\n・一個普通上班族做得到的方法\n・今天晚上就能開始的最小行動\n\n1 倍，是財富自由的門檻。2 倍，是不用為生存奔波的餘裕。\n\n#現金流 #降低薪水依賴 #米克大叔`;
-}
-
 function buildEditPlan(state: SavedState) {
   return `# ${state.selectedTitle || state.selectedTopic}｜AI 剪輯任務\n\n## 節奏\n開場 10 秒快速建立「薪水消失」的危機感；觀念段保留停頓；方法段加入條列與關鍵字畫面；結尾回到 1 倍與 2 倍。\n\n## 必留重點\n觀眾痛點：${state.keyword}\n米克補充：${state.supplement || '無'}\n\n## 畫面規則\n黑白金、溫暖寫實、家庭感；不使用卡通人物、通用商務人物或暴富視覺。字幕保持繁體中文，關鍵數字只強調「1×」與「2×」。\n\n## 交付\n16:9 YouTube 主片、去除明顯停頓與口誤、保留自然呼吸；需由米克大叔看片確認後才能定稿。`;
 }
@@ -286,6 +276,9 @@ export default function Home() {
   const [isGeneratingThumbnails, setIsGeneratingThumbnails] = useState(false);
   const [thumbnailStatus, setThumbnailStatus] = useState('');
   const [thumbnailError, setThumbnailError] = useState('');
+  const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+  const [scriptStatus, setScriptStatus] = useState('');
+  const [scriptError, setScriptError] = useState('');
   const titles = useMemo(
     () => makeTitles(state.selectedTopic, state.pillar),
     [state.selectedTopic, state.pillar],
@@ -372,10 +365,15 @@ export default function Home() {
       selectedTopic: '',
       selectedTitle: '',
       thumbnailJobs: [],
+      scriptJobId: '',
+      script: '',
+      description: '',
     });
     setThumbnailImages(['', '', '']);
     setThumbnailStatus('');
     setThumbnailError('');
+    setScriptStatus('');
+    setScriptError('');
     setSearchPhase('');
     setSearchError('');
   }
@@ -399,6 +397,9 @@ export default function Home() {
       selectedTopic: topic,
       selectedTitle: '',
       thumbnailJobs: [],
+      scriptJobId: '',
+      script: '',
+      description: '',
     });
   }
 
@@ -407,7 +408,15 @@ export default function Home() {
     setThumbnailImages(['', '', '']);
     setThumbnailStatus('');
     setThumbnailError('');
-    update({ selectedTitle: title, thumbnailJobs: [] });
+    setScriptStatus('');
+    setScriptError('');
+    update({
+      selectedTitle: title,
+      thumbnailJobs: [],
+      scriptJobId: '',
+      script: '',
+      description: '',
+    });
   }
   async function pollResearch(responseId: string, code: string) {
     for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -441,6 +450,10 @@ export default function Home() {
           candidateDetails: [],
           selectedTopic: '',
           selectedTitle: '',
+          thumbnailJobs: [],
+          scriptJobId: '',
+          script: '',
+          description: '',
         });
         setSearchPhase('查證完成。請檢視素材，再按第二步產生選題。');
         return;
@@ -497,6 +510,10 @@ export default function Home() {
           candidateDetails: [],
           selectedTopic: '',
           selectedTitle: '',
+          thumbnailJobs: [],
+          scriptJobId: '',
+          script: '',
+          description: '',
         });
       }
       await pollResearch(responseId, code);
@@ -630,6 +647,112 @@ export default function Home() {
     }
   }
 
+  async function pollScript(responseId: string, code: string) {
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      const response = await fetch('/api/script-writer', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          phase: 'status',
+          accessCode: code,
+          responseId,
+        }),
+      });
+      const data = (await response.json()) as {
+        status?: string;
+        script?: string;
+        description?: string;
+        error?: string;
+      };
+      if (!response.ok) {
+        update({ scriptJobId: '' });
+        throw new Error(data.error || '無法查詢腳本進度');
+      }
+      if (data.status === 'completed' && data.script && data.description) {
+        update({
+          scriptJobId: '',
+          script: data.script,
+          description: data.description,
+          editPlan: '',
+          fbCopy: '',
+          igCopy: '',
+        });
+        setScriptStatus('腳本與資訊欄已完成，可以直接修改或複製。');
+        return;
+      }
+      setScriptStatus('OpenAI 正在背景撰寫 8–10 分鐘腳本…');
+      await new Promise((resolve) => window.setTimeout(resolve, 3000));
+    }
+    throw new Error(
+      '腳本仍在背景撰寫。稍後再按「查看腳本進度」，不會重新產生或重複計費。',
+    );
+  }
+
+  async function generateScript(forceNew = false) {
+    setScriptError('');
+    if (!state.selectedTitle) {
+      setScriptError('請先在 Step 2 選定影片標題。');
+      return;
+    }
+    if (!accessCode.trim()) {
+      setScriptError('請先輸入平台使用碼。');
+      return;
+    }
+
+    setIsGeneratingScript(true);
+    window.sessionStorage.setItem('studio-access-code', accessCode.trim());
+    try {
+      const code = accessCode.trim();
+      let responseId = forceNew ? '' : state.scriptJobId;
+      if (forceNew) {
+        update({ scriptJobId: '', script: '', description: '' });
+      }
+      if (!responseId) {
+        setScriptStatus('正在建立 OpenAI 背景腳本任務…');
+        const response = await fetch('/api/script-writer', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            phase: 'generate',
+            accessCode: code,
+            pillar: state.pillar,
+            topic: state.selectedTopic,
+            title: state.selectedTitle,
+            painPoint: state.keyword,
+            supplement: state.supplement,
+            references: state.sources,
+            research: state.researchSummary,
+            researchSources: state.researchSources,
+          }),
+        });
+        const data = (await response.json()) as {
+          responseId?: string;
+          error?: string;
+        };
+        if (!response.ok || !data.responseId) {
+          throw new Error(data.error || '無法建立背景腳本任務');
+        }
+        responseId = data.responseId;
+        update({
+          scriptJobId: responseId,
+          script: '',
+          description: '',
+          editPlan: '',
+          fbCopy: '',
+          igCopy: '',
+        });
+      }
+      await pollScript(responseId, code);
+    } catch (error) {
+      setScriptStatus('');
+      setScriptError(
+        error instanceof Error ? error.message : '腳本生成暫時無法使用',
+      );
+    } finally {
+      setIsGeneratingScript(false);
+    }
+  }
+
   async function generateCandidates() {
     setSearchError('');
     if (state.topicMode === 'planned') {
@@ -640,6 +763,12 @@ export default function Home() {
           state.topicMode,
         ),
         candidateDetails: [],
+        selectedTopic: '',
+        selectedTitle: '',
+        thumbnailJobs: [],
+        scriptJobId: '',
+        script: '',
+        description: '',
       });
       return;
     }
@@ -682,6 +811,10 @@ export default function Home() {
         candidateDetails: topicData.candidates,
         selectedTopic: '',
         selectedTitle: '',
+        thumbnailJobs: [],
+        scriptJobId: '',
+        script: '',
+        description: '',
       });
       setSearchPhase('');
     } catch (error) {
@@ -1332,23 +1465,60 @@ export default function Home() {
               />
             ) : (
               <>
-                <div className="mb-5 flex flex-wrap items-center gap-3">
-                  <Button
-                    className="gold-button"
-                    onClick={() =>
-                      update({
-                        script: buildScript(state),
-                        description: buildDescription(state),
-                      })
-                    }
-                  >
-                    <WandSparkles className="size-4" />
-                    {state.script ? '重新整理腳本與資訊欄' : '產生腳本與資訊欄'}
-                  </Button>
-                  <span className="text-xs text-muted-foreground">
-                    只整理本人回答，不補不存在的經歷或成果。
-                  </span>
-                </div>
+                <section className="surface-card mb-5 p-5 md:p-6">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(220px,360px)_auto] lg:items-end">
+                    <label
+                      htmlFor="script-access-code"
+                      className="grid gap-2 text-sm font-bold"
+                    >
+                      平台使用碼
+                      <Input
+                        id="script-access-code"
+                        type="password"
+                        value={accessCode}
+                        onChange={(event) => setAccessCode(event.target.value)}
+                        placeholder="與 Step 1 使用同一組代碼"
+                        autoComplete="current-password"
+                      />
+                    </label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button
+                        className="gold-button"
+                        disabled={isGeneratingScript}
+                        onClick={() =>
+                          void generateScript(Boolean(state.script))
+                        }
+                      >
+                        {isGeneratingScript ? (
+                          <LoaderCircle className="size-4 animate-spin" />
+                        ) : (
+                          <WandSparkles className="size-4" />
+                        )}
+                        {isGeneratingScript
+                          ? '撰寫中…'
+                          : state.scriptJobId
+                            ? '查看腳本進度'
+                            : state.script
+                              ? '重新生成腳本與資訊欄'
+                              : '產生腳本與資訊欄'}
+                      </Button>
+                      <span className="text-xs leading-5 text-muted-foreground">
+                        使用 OpenAI
+                        API；只採用已提供或已查證資料，不補不存在的經歷、成果或網址。
+                      </span>
+                    </div>
+                  </div>
+                  {scriptStatus && (
+                    <div className="mt-4 rounded-xl border border-[#d4af64]/30 bg-[#d4af64]/10 px-4 py-3 text-sm text-[#6f541f]">
+                      {scriptStatus}
+                    </div>
+                  )}
+                  {scriptError && (
+                    <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {scriptError}
+                    </div>
+                  )}
+                </section>
                 <div className="grid gap-5 xl:grid-cols-[1.25fr_.75fr]">
                   <section className="surface-card p-5 md:p-7">
                     <div className="flex items-center justify-between">
