@@ -187,6 +187,45 @@ export async function POST(request: Request) {
       );
     }
 
+    if (body.phase === 'generateOne' && provider === 'google') {
+      const title = validString(body.title, 220);
+      const topic = validString(body.topic, 500);
+      const pillar = validString(body.pillar, 40);
+      const prompt = validString(body.prompt, 1800);
+      const compositionIndex =
+        typeof body.compositionIndex === 'number'
+          ? Math.max(0, Math.min(2, Math.trunc(body.compositionIndex)))
+          : 0;
+      if (!title || !topic || !prompt) {
+        return Response.json(
+          { error: '請先選定標題並準備縮圖方向。' },
+          { status: 400 },
+        );
+      }
+
+      const result = await geminiRequest(
+        apiKey,
+        '/interactions',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            model: process.env.GEMINI_IMAGE_MODEL || DEFAULT_GEMINI_IMAGE_MODEL,
+            input: finalPrompt(prompt, title, topic, pillar, compositionIndex),
+            response_format: {
+              type: 'image',
+              aspect_ratio: '16:9',
+              image_size: '2K',
+              mime_type: 'image/jpeg',
+            },
+          }),
+        },
+        55_000,
+      );
+      const image = geminiImageFrom(result);
+      if (!image) throw new Error('Nano Banana Pro 沒有回傳圖片結果。');
+      return Response.json({ status: 'completed', ...image });
+    }
+
     if (body.phase === 'generate') {
       const title = validString(body.title, 220);
       const topic = validString(body.topic, 500);
@@ -240,24 +279,7 @@ export async function POST(request: Request) {
             if (!result.id) throw new Error('未取得 GPT Image 2 任務編號');
             jobs.push({ index, responseId: result.id });
           } else {
-            const result = await geminiRequest(apiKey, '/interactions', {
-              method: 'POST',
-              body: JSON.stringify({
-                model:
-                  process.env.GEMINI_IMAGE_MODEL || DEFAULT_GEMINI_IMAGE_MODEL,
-                input: completePrompt,
-                background: true,
-                store: true,
-                response_format: {
-                  type: 'image',
-                  aspect_ratio: '16:9',
-                  image_size: '2K',
-                  mime_type: 'image/jpeg',
-                },
-              }),
-            });
-            if (!result.id) throw new Error('未取得 Nano Banana Pro 任務編號');
-            jobs.push({ index, responseId: result.id });
+            throw new Error('Nano Banana Pro 請改用逐張生成流程。');
           }
         } catch (error) {
           failures.push(

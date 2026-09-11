@@ -705,6 +705,54 @@ export default function Home() {
     window.sessionStorage.setItem('studio-access-code', accessCode.trim());
     try {
       const code = accessCode.trim();
+
+      if (provider === 'google') {
+        let images = ['', '', ''];
+        setGoogleThumbnailImages([...images]);
+        update({ googleThumbnailJobs: [] });
+        for (const [index, idea] of thumbIdeas.entries()) {
+          setThumbnailStatus((current) => ({
+            ...current,
+            google: `Nano Banana Pro 正在生成第 ${index + 1}/3 張…`,
+          }));
+          const response = await fetch('/api/thumbnails', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              phase: 'generateOne',
+              provider: 'google',
+              accessCode: code,
+              topic: state.selectedTopic,
+              title: state.selectedTitle,
+              pillar: state.pillar,
+              prompt: idea.prompt,
+              compositionIndex: index,
+            }),
+          });
+          const data = (await response.json()) as {
+            imageBase64?: string;
+            mimeType?: string;
+            error?: string;
+          };
+          if (!response.ok || !data.imageBase64) {
+            throw new Error(
+              `${images.filter(Boolean).length}/3 張已完成；第 ${index + 1} 張：${data.error || '生成失敗'}`,
+            );
+          }
+          images = images.map((image, imageIndex) =>
+            imageIndex === index
+              ? `data:${data.mimeType || 'image/jpeg'};base64,${data.imageBase64}`
+              : image,
+          );
+          setGoogleThumbnailImages([...images]);
+        }
+        setThumbnailStatus((current) => ({
+          ...current,
+          google: 'Nano Banana Pro 的 3 組縮圖已完成。',
+        }));
+        return;
+      }
+
       let jobs = forceNew
         ? []
         : provider === 'openai'
