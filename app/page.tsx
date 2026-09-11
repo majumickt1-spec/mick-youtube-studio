@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,7 +52,7 @@ const steps = [
   { label: '選題雷達', detail: '靈感狀態＋方向＋痛點與來源', icon: Radar },
   {
     label: '縮圖生成',
-    detail: '3 組無字圖＋大字與 Canva 提示詞',
+    detail: 'GPT Image 2 生成 3 組無字縮圖',
     icon: ImageIcon,
   },
   { label: '腳本創作', detail: '口語腳本＋資訊欄文案', icon: NotebookPen },
@@ -134,6 +135,11 @@ type TopicCandidate = {
   source: ResearchSource | null;
 };
 
+type ThumbnailJob = {
+  index: number;
+  responseId: string;
+};
+
 type SavedState = {
   videoName: string;
   topicMode: string;
@@ -150,6 +156,7 @@ type SavedState = {
   selectedTopic: string;
   selectedTitle: string;
   selectedThumb: number;
+  thumbnailJobs: ThumbnailJob[];
   script: string;
   description: string;
   editPlan: string;
@@ -173,6 +180,7 @@ const initialState: SavedState = {
   selectedTopic: '',
   selectedTitle: '',
   selectedThumb: 0,
+  thumbnailJobs: [],
   script: '',
   description: '',
   editPlan: '',
@@ -270,6 +278,14 @@ export default function Home() {
   >('');
   const [searchPhase, setSearchPhase] = useState('');
   const [searchError, setSearchError] = useState('');
+  const [thumbnailImages, setThumbnailImages] = useState<string[]>([
+    '',
+    '',
+    '',
+  ]);
+  const [isGeneratingThumbnails, setIsGeneratingThumbnails] = useState(false);
+  const [thumbnailStatus, setThumbnailStatus] = useState('');
+  const [thumbnailError, setThumbnailError] = useState('');
   const titles = useMemo(
     () => makeTitles(state.selectedTopic, state.pillar),
     [state.selectedTopic, state.pillar],
@@ -355,7 +371,11 @@ export default function Home() {
       candidateDetails: [],
       selectedTopic: '',
       selectedTitle: '',
+      thumbnailJobs: [],
     });
+    setThumbnailImages(['', '', '']);
+    setThumbnailStatus('');
+    setThumbnailError('');
     setSearchPhase('');
     setSearchError('');
   }
@@ -370,6 +390,24 @@ export default function Home() {
   }
   function copyText(text: string, message: string) {
     void navigator.clipboard.writeText(text).then(() => setNotice(message));
+  }
+  function selectTopic(topic: string) {
+    setThumbnailImages(['', '', '']);
+    setThumbnailStatus('');
+    setThumbnailError('');
+    update({
+      selectedTopic: topic,
+      selectedTitle: '',
+      thumbnailJobs: [],
+    });
+  }
+
+  function selectTitle(title: string) {
+    if (title === state.selectedTitle) return;
+    setThumbnailImages(['', '', '']);
+    setThumbnailStatus('');
+    setThumbnailError('');
+    update({ selectedTitle: title, thumbnailJobs: [] });
   }
   async function pollResearch(responseId: string, code: string) {
     for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -472,6 +510,126 @@ export default function Home() {
       setActiveSearchAction('');
     }
   }
+
+  async function pollThumbnailJobs(jobs: ThumbnailJob[], code: string) {
+    const pending = new Map(jobs.map((job) => [job.responseId, job]));
+    const images = ['', '', ''];
+    const failures: string[] = [];
+    for (let attempt = 0; attempt < 90; attempt += 1) {
+      const results = await Promise.all(
+        [...pending.values()].map(async (job) => {
+          const response = await fetch('/api/thumbnails', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              phase: 'status',
+              accessCode: code,
+              responseId: job.responseId,
+            }),
+          });
+          const data = (await response.json()) as {
+            status?: string;
+            imageBase64?: string;
+            mimeType?: string;
+            error?: string;
+          };
+          return { job, response, data };
+        }),
+      );
+
+      for (const { job, response, data } of results) {
+        if (!response.ok) {
+          pending.delete(job.responseId);
+          failures.push(`第 ${job.index + 1} 組：${data.error || '生成失敗'}`);
+          continue;
+        }
+        if (data.status === 'completed' && data.imageBase64) {
+          images[job.index] =
+            `data:${data.mimeType || 'image/webp'};base64,${data.imageBase64}`;
+          pending.delete(job.responseId);
+        }
+      }
+
+      setThumbnailImages([...images]);
+      const completedCount = images.filter(Boolean).length;
+      if (pending.size === 0) {
+        if (failures.length > 0) {
+          throw new Error(
+            `${completedCount} 組縮圖已完成；${failures.join('；')}`,
+          );
+        }
+        setThumbnailStatus(
+          `${completedCount} 組縮圖已完成。選定一組後可下載或進入腳本。`,
+        );
+        return;
+      }
+      setThumbnailStatus(
+        `GPT Image 2 正在背景生成（已完成 ${completedCount}/${jobs.length}）…`,
+      );
+      await new Promise((resolve) => window.setTimeout(resolve, 4000));
+    }
+    throw new Error(
+      '縮圖仍在背景生成。稍後再按「查看生成進度」，不會重複產生或重複計費。',
+    );
+  }
+
+  async function generateThumbnails(forceNew = false) {
+    setThumbnailError('');
+    if (!state.selectedTitle) {
+      setThumbnailError('請先在左側選定一個影片標題。');
+      return;
+    }
+    if (!accessCode.trim()) {
+      setThumbnailError('請先輸入平台使用碼。');
+      return;
+    }
+
+    setIsGeneratingThumbnails(true);
+    window.sessionStorage.setItem('studio-access-code', accessCode.trim());
+    try {
+      const code = accessCode.trim();
+      let jobs = forceNew ? [] : state.thumbnailJobs;
+      if (forceNew) {
+        setThumbnailImages(['', '', '']);
+        update({ thumbnailJobs: [] });
+      }
+      if (jobs.length === 0) {
+        setThumbnailStatus('正在建立三組 GPT Image 2 縮圖任務…');
+        const response = await fetch('/api/thumbnails', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            phase: 'generate',
+            accessCode: code,
+            topic: state.selectedTopic,
+            title: state.selectedTitle,
+            pillar: state.pillar,
+            prompts: thumbIdeas.map((idea) => idea.prompt),
+          }),
+        });
+        const data = (await response.json()) as {
+          jobs?: ThumbnailJob[];
+          warning?: string;
+          error?: string;
+        };
+        if (!response.ok || !data.jobs?.length) {
+          throw new Error(data.error || '無法建立縮圖任務');
+        }
+        jobs = data.jobs;
+        update({ thumbnailJobs: jobs });
+        if (data.warning) setThumbnailError(data.warning);
+      }
+      await pollThumbnailJobs(jobs, code);
+    } catch (error) {
+      setThumbnailStatus('');
+      setThumbnailError(
+        error instanceof Error ? error.message : '縮圖生成暫時無法使用',
+      );
+    } finally {
+      setIsGeneratingThumbnails(false);
+    }
+  }
+
   async function generateCandidates() {
     setSearchError('');
     if (state.topicMode === 'planned') {
@@ -887,12 +1045,7 @@ export default function Home() {
                               </td>
                               <td className="px-4 py-4">
                                 <button
-                                  onClick={() =>
-                                    update({
-                                      selectedTopic: candidate.title,
-                                      selectedTitle: '',
-                                    })
-                                  }
+                                  onClick={() => selectTopic(candidate.title)}
                                   className="flex w-full items-start gap-2 text-left font-bold leading-6 hover:text-[#8b6c2d]"
                                 >
                                   <span className="mt-1 grid size-4 shrink-0 place-items-center rounded-full border border-[#d4af64]">
@@ -938,12 +1091,7 @@ export default function Home() {
                     {state.candidates.map((candidate, index) => (
                       <button
                         key={candidate}
-                        onClick={() =>
-                          update({
-                            selectedTopic: candidate,
-                            selectedTitle: '',
-                          })
-                        }
+                        onClick={() => selectTopic(candidate)}
                         className={`group flex items-center gap-4 rounded-2xl border p-4 text-left transition ${state.selectedTopic === candidate ? 'border-[#d4af64] bg-[#d4af64]/10' : 'bg-card hover:border-[#d4af64]/50'}`}
                       >
                         <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[#151515] font-mono text-xs text-[#d4af64]">
@@ -979,8 +1127,8 @@ export default function Home() {
         <TabsContent value="1">
           <StageShell
             step="STEP 02"
-            eyebrow="圖片不放中文字，文字建議與 Canva 提示詞分開"
-            title="一次準備 3 組縮圖方向。"
+            eyebrow="GPT Image 2 直接產圖，中文字留到 Canva 疊加"
+            title="一次生成 3 組無字縮圖。"
           >
             {!state.selectedTopic ? (
               <Blocked
@@ -1000,9 +1148,7 @@ export default function Home() {
                       {titles.map((title) => (
                         <button
                           key={title}
-                          onClick={() => {
-                            update({ selectedTitle: title });
-                          }}
+                          onClick={() => selectTitle(title)}
                           className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left text-sm font-semibold leading-6 ${state.selectedTitle === title ? 'border-[#d4af64] bg-[#d4af64]/10' : 'bg-[#faf9f6]'}`}
                         >
                           <span
@@ -1018,47 +1164,152 @@ export default function Home() {
                     </div>
                   </section>
                   <section className="surface-card p-5 md:p-7">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
-                        <p className="text-sm font-bold">三組縮圖企劃</p>
+                        <p className="text-sm font-bold">三組 AI 縮圖</p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          圖片本身不放文字；大字建議留到 Canva 疊加。
+                          16:9 無字圖；選定後下載，再到 Canva 疊加大字。
                         </p>
                         <Badge className="mt-3 border-[#d4af64]/40 bg-[#d4af64]/10 text-[#795d24]">
-                          AI 圖片生成延後建置
+                          GPT Image 2 已連接
                         </Badge>
                       </div>
                       <IconTile>
                         <ImageIcon className="size-5" />
                       </IconTile>
                     </div>
-                    <p className="mt-5 rounded-2xl border border-dashed p-4 text-sm leading-6 text-muted-foreground">
-                      目前先完成縮圖方向、大字建議與 Canva
-                      英文提示詞；不需要設定 API，也不會在平台內產生圖片。
-                    </p>
+                    <div className="mt-5 rounded-2xl border border-[#d4af64]/30 bg-[#faf8f1] p-4">
+                      <p className="text-sm font-semibold">
+                        會依本集主題與選定標題，生成三個不同畫面方向。
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        每次重新生成都會使用 OpenAI API
+                        額度；圖片不含文字、數字、標誌或浮水印。
+                      </p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                        <Input
+                          type="password"
+                          value={accessCode}
+                          onChange={(event) =>
+                            setAccessCode(event.target.value)
+                          }
+                          placeholder="平台使用碼"
+                          autoComplete="current-password"
+                        />
+                        <Button
+                          className="gold-button"
+                          disabled={
+                            isGeneratingThumbnails || !state.selectedTitle
+                          }
+                          onClick={() =>
+                            void generateThumbnails(
+                              thumbnailImages.filter(Boolean).length > 0 &&
+                                thumbnailImages.filter(Boolean).length ===
+                                  state.thumbnailJobs.length,
+                            )
+                          }
+                        >
+                          {isGeneratingThumbnails ? (
+                            <LoaderCircle className="size-4 animate-spin" />
+                          ) : (
+                            <WandSparkles className="size-4" />
+                          )}
+                          {isGeneratingThumbnails
+                            ? '生成中…'
+                            : state.thumbnailJobs.length > 0 &&
+                                thumbnailImages.filter(Boolean).length === 0
+                              ? '查看生成進度'
+                              : thumbnailImages.filter(Boolean).length > 0
+                                ? '重新生成 3 組'
+                                : '生成 3 組縮圖'}
+                        </Button>
+                      </div>
+                      {thumbnailStatus && (
+                        <p className="mt-3 text-sm font-semibold text-[#6f541f]">
+                          {thumbnailStatus}
+                        </p>
+                      )}
+                      {thumbnailError && (
+                        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                          {thumbnailError}
+                        </p>
+                      )}
+                    </div>
                     <div className="mt-5 grid gap-3">
                       {thumbIdeas.map((idea, index) => (
-                        <button
+                        <div
                           key={idea.name}
-                          onClick={() => update({ selectedThumb: index })}
-                          className={`rounded-2xl border bg-white p-4 text-left ${state.selectedThumb === index ? 'border-[#d4af64] ring-2 ring-[#d4af64]/25' : 'border-border'}`}
+                          className={`overflow-hidden rounded-2xl border bg-white ${state.selectedThumb === index ? 'border-[#d4af64] ring-2 ring-[#d4af64]/25' : 'border-border'}`}
                         >
-                          <p className="text-xs font-bold text-[#8b6c2d]">
-                            {idea.name}｜大字建議：{idea.text}
-                          </p>
-                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                            畫面方向：{idea.scene}
-                          </p>
-                          <p className="mt-3 rounded-lg bg-[#f4f1e9] p-3 font-mono text-[11px] leading-5 text-[#4c463a]">
-                            {idea.prompt}
-                          </p>
-                        </button>
+                          <div className="relative aspect-video bg-[#111]">
+                            {thumbnailImages[index] ? (
+                              <Image
+                                src={thumbnailImages[index]}
+                                alt={`第 ${index + 1} 組無字縮圖：${idea.name}`}
+                                fill
+                                sizes="(min-width: 1280px) 50vw, 100vw"
+                                unoptimized
+                                className="size-full object-cover"
+                              />
+                            ) : (
+                              <div className="grid size-full place-items-center px-6 text-center text-sm text-white/60">
+                                <div>
+                                  {isGeneratingThumbnails ? (
+                                    <LoaderCircle className="mx-auto mb-3 size-7 animate-spin text-[#d4af64]" />
+                                  ) : (
+                                    <ImageIcon className="mx-auto mb-3 size-7 text-[#d4af64]" />
+                                  )}
+                                  {state.thumbnailJobs.some(
+                                    (job) => job.index === index,
+                                  )
+                                    ? '等待 GPT Image 2 完成'
+                                    : '尚未生成'}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <button
+                                onClick={() => update({ selectedThumb: index })}
+                                className="text-left text-sm font-bold text-[#8b6c2d]"
+                              >
+                                {state.selectedThumb === index ? '✓ ' : ''}
+                                {idea.name}｜大字建議：{idea.text}
+                              </button>
+                              {thumbnailImages[index] && (
+                                <a
+                                  href={thumbnailImages[index]}
+                                  download={`mick-thumbnail-${index + 1}.webp`}
+                                  className="inline-flex items-center gap-1 text-xs font-bold text-[#6f541f] underline underline-offset-4"
+                                >
+                                  <Download className="size-3" />
+                                  下載圖片
+                                </a>
+                              )}
+                            </div>
+                            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                              畫面方向：{idea.scene}
+                            </p>
+                            <details className="mt-3 rounded-lg bg-[#f4f1e9] p-3 text-xs text-[#4c463a]">
+                              <summary className="cursor-pointer font-bold">
+                                Canva 英文提示詞
+                              </summary>
+                              <p className="mt-2 font-mono text-[11px] leading-5">
+                                {idea.prompt}
+                              </p>
+                            </details>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </section>
                 </div>
                 <NextButton
-                  disabled={!state.selectedTitle}
+                  disabled={
+                    !state.selectedTitle ||
+                    !thumbnailImages[state.selectedThumb]
+                  }
                   onClick={() => go(2)}
                 >
                   縮圖方向確認，開始寫腳本
