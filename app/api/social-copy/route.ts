@@ -92,10 +92,15 @@ ${input.script || '未提供，僅依主題與標題撰寫'}
 - 輸出的 fbCopy 只能放可直接發布的貼文，不要混入首圖說明、段落名稱或寫作註解。
 
 【Instagram 文案】
-- 約 180–320 個繁體中文字，短句、留白明確，適合手機閱讀。
-- 開頭 1–2 行必須有停留感，中段濃縮核心觀點或 3 個收穫。
-- 結尾寫「完整影片：請見個人檔案連結」。
+- 另提供「首圖圖片標題」與「首圖視覺方向」。圖片標題要短、有停留感且不誇大；視覺方向要是一句可執行的構圖說明，不要生成圖片。
+- 貼文約 180–320 個繁體中文字，依序完成：首圖承接 → 前 2 行 Hook → 核心價值／乾貨故事 → 精簡總結／金句 → CTA＋Hashtag。
+- 前 2 行必須用痛點、反差或懸念誘發點擊「更多」，不要先介紹影片。
+- 核心內容使用短句、2–3 點條列或模組化段落，讓手機讀者快速掃讀。
+- 總結要是一句值得收藏的金句，不用空泛勵志語。
+- 每段不超過 2–3 行，段落之間空一行；全文 Emoji 建議 3–5 個且絕不超過 8 個。
+- CTA 以觀看完整影片為主要行動，固定寫「完整影片：請見個人檔案連結」。
 - 最後放 5–8 個精準 Hashtag，不塞無關熱門標籤。
+- 輸出的 igCopy 只能放可直接發布的貼文，不要混入首圖說明、段落名稱或寫作註解。
 
 兩份文案都不要加「Facebook 文案」「Instagram 文案」等前言；只輸出符合指定 JSON Schema 的內容。`;
 }
@@ -105,16 +110,34 @@ function parsePackage(text: string) {
     fbImageTitle?: unknown;
     fbVisual?: unknown;
     fbCopy?: unknown;
+    igImageTitle?: unknown;
+    igVisual?: unknown;
     igCopy?: unknown;
   };
   const fbImageTitle = validString(parsed.fbImageTitle, 100);
   const fbVisual = validString(parsed.fbVisual, 500);
   const fbCopy = validString(parsed.fbCopy, 8_000);
+  const igImageTitle = validString(parsed.igImageTitle, 100);
+  const igVisual = validString(parsed.igVisual, 500);
   const igCopy = validString(parsed.igCopy, 5_000);
-  if (!fbImageTitle || !fbVisual || !fbCopy || !igCopy) {
+  if (
+    !fbImageTitle ||
+    !fbVisual ||
+    !fbCopy ||
+    !igImageTitle ||
+    !igVisual ||
+    !igCopy
+  ) {
     throw new Error('社群文案結果格式不完整');
   }
-  return { fbImageTitle, fbVisual, fbCopy, igCopy };
+  return {
+    fbImageTitle,
+    fbVisual,
+    fbCopy,
+    igImageTitle,
+    igVisual,
+    igCopy,
+  };
 }
 
 export async function POST(request: Request) {
@@ -174,9 +197,18 @@ export async function POST(request: Request) {
                   fbImageTitle: { type: 'string' },
                   fbVisual: { type: 'string' },
                   fbCopy: { type: 'string' },
+                  igImageTitle: { type: 'string' },
+                  igVisual: { type: 'string' },
                   igCopy: { type: 'string' },
                 },
-                required: ['fbImageTitle', 'fbVisual', 'fbCopy', 'igCopy'],
+                required: [
+                  'fbImageTitle',
+                  'fbVisual',
+                  'fbCopy',
+                  'igImageTitle',
+                  'igVisual',
+                  'igCopy',
+                ],
                 additionalProperties: false,
               },
             },

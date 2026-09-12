@@ -169,6 +169,8 @@ type SavedState = {
   fbImageTitle: string;
   fbVisual: string;
   fbCopy: string;
+  igImageTitle: string;
+  igVisual: string;
   igCopy: string;
 };
 
@@ -199,6 +201,8 @@ const initialState: SavedState = {
   fbImageTitle: '',
   fbVisual: '',
   fbCopy: '',
+  igImageTitle: '',
+  igVisual: '',
   igCopy: '',
 };
 
@@ -457,6 +461,8 @@ export default function Home() {
       fbImageTitle: '',
       fbVisual: '',
       fbCopy: '',
+      igImageTitle: '',
+      igVisual: '',
       igCopy: '',
     });
     setThumbnailImages(['', '', '']);
@@ -502,6 +508,8 @@ export default function Home() {
       fbImageTitle: '',
       fbVisual: '',
       fbCopy: '',
+      igImageTitle: '',
+      igVisual: '',
       igCopy: '',
     });
   }
@@ -528,6 +536,8 @@ export default function Home() {
       fbImageTitle: '',
       fbVisual: '',
       fbCopy: '',
+      igImageTitle: '',
+      igVisual: '',
       igCopy: '',
     });
   }
@@ -889,6 +899,8 @@ export default function Home() {
           fbImageTitle: '',
           fbVisual: '',
           fbCopy: '',
+          igImageTitle: '',
+          igVisual: '',
           igCopy: '',
         });
         setScriptStatus('腳本與資訊欄已完成，可以直接修改或複製。');
@@ -956,6 +968,8 @@ export default function Home() {
           fbImageTitle: '',
           fbVisual: '',
           fbCopy: '',
+          igImageTitle: '',
+          igVisual: '',
           igCopy: '',
         });
       }
@@ -986,6 +1000,8 @@ export default function Home() {
         fbImageTitle?: string;
         fbVisual?: string;
         fbCopy?: string;
+        igImageTitle?: string;
+        igVisual?: string;
         igCopy?: string;
         error?: string;
       };
@@ -998,6 +1014,8 @@ export default function Home() {
         data.fbImageTitle &&
         data.fbVisual &&
         data.fbCopy &&
+        data.igImageTitle &&
+        data.igVisual &&
         data.igCopy
       ) {
         update({
@@ -1005,6 +1023,8 @@ export default function Home() {
           fbImageTitle: data.fbImageTitle,
           fbVisual: data.fbVisual,
           fbCopy: data.fbCopy,
+          igImageTitle: data.igImageTitle,
+          igVisual: data.igVisual,
           igCopy: data.igCopy,
         });
         setSocialStatus(
@@ -1042,6 +1062,8 @@ export default function Home() {
           fbImageTitle: '',
           fbVisual: '',
           fbCopy: '',
+          igImageTitle: '',
+          igVisual: '',
           igCopy: '',
         });
       }
@@ -1074,6 +1096,8 @@ export default function Home() {
           fbImageTitle: '',
           fbVisual: '',
           fbCopy: '',
+          igImageTitle: '',
+          igVisual: '',
           igCopy: '',
         });
       }
@@ -2170,13 +2194,50 @@ export default function Home() {
                         </Button>
                       )}
                     </div>
+                    {(state.igImageTitle || state.igVisual) && (
+                      <div className="mt-4 grid gap-4 rounded-2xl border border-[#d4af64]/30 bg-[#d4af64]/8 p-4">
+                        <label
+                          htmlFor="instagram-image-title"
+                          className="grid gap-2 text-xs font-bold text-[#6f541f]"
+                        >
+                          首圖圖片標題
+                          <Input
+                            id="instagram-image-title"
+                            aria-label="Instagram 首圖圖片標題"
+                            value={state.igImageTitle}
+                            onChange={(event) =>
+                              update({ igImageTitle: event.target.value })
+                            }
+                            className="bg-white"
+                          />
+                        </label>
+                        <label
+                          htmlFor="instagram-visual-direction"
+                          className="grid gap-2 text-xs font-bold text-[#6f541f]"
+                        >
+                          首圖視覺方向
+                          <Textarea
+                            id="instagram-visual-direction"
+                            aria-label="Instagram 首圖視覺方向"
+                            value={state.igVisual}
+                            onChange={(event) =>
+                              update({ igVisual: event.target.value })
+                            }
+                            className="min-h-24 bg-white text-sm leading-6"
+                          />
+                        </label>
+                        <p className="text-xs leading-5 text-muted-foreground">
+                          首圖建議獨立顯示，不會混入下方複製的貼文內容。
+                        </p>
+                      </div>
+                    )}
                     <Textarea
                       aria-label="Instagram 宣傳文案"
                       value={state.igCopy}
                       onChange={(event) =>
                         update({ igCopy: event.target.value })
                       }
-                      placeholder="產生適合 Instagram 的短句、品牌句與標籤。"
+                      placeholder="依首圖、Hook、核心價值、收藏金句與 CTA 產生 Instagram 文案。"
                       className="mt-4 min-h-[420px] text-sm leading-7"
                     />
                   </section>
