@@ -166,6 +166,8 @@ type SavedState = {
   description: string;
   editPlan: string;
   socialJobId: string;
+  fbImageTitle: string;
+  fbVisual: string;
   fbCopy: string;
   igCopy: string;
 };
@@ -194,6 +196,8 @@ const initialState: SavedState = {
   description: '',
   editPlan: '',
   socialJobId: '',
+  fbImageTitle: '',
+  fbVisual: '',
   fbCopy: '',
   igCopy: '',
 };
@@ -450,6 +454,8 @@ export default function Home() {
       description: '',
       editPlan: '',
       socialJobId: '',
+      fbImageTitle: '',
+      fbVisual: '',
       fbCopy: '',
       igCopy: '',
     });
@@ -493,6 +499,8 @@ export default function Home() {
       description: '',
       editPlan: '',
       socialJobId: '',
+      fbImageTitle: '',
+      fbVisual: '',
       fbCopy: '',
       igCopy: '',
     });
@@ -517,6 +525,8 @@ export default function Home() {
       description: '',
       editPlan: '',
       socialJobId: '',
+      fbImageTitle: '',
+      fbVisual: '',
       fbCopy: '',
       igCopy: '',
     });
@@ -876,6 +886,8 @@ export default function Home() {
           description: removeDescriptionSources(data.description),
           editPlan: '',
           socialJobId: '',
+          fbImageTitle: '',
+          fbVisual: '',
           fbCopy: '',
           igCopy: '',
         });
@@ -941,6 +953,8 @@ export default function Home() {
           description: '',
           editPlan: '',
           socialJobId: '',
+          fbImageTitle: '',
+          fbVisual: '',
           fbCopy: '',
           igCopy: '',
         });
@@ -969,6 +983,8 @@ export default function Home() {
       });
       const data = (await response.json()) as {
         status?: string;
+        fbImageTitle?: string;
+        fbVisual?: string;
         fbCopy?: string;
         igCopy?: string;
         error?: string;
@@ -977,9 +993,17 @@ export default function Home() {
         update({ socialJobId: '' });
         throw new Error(data.error || '無法查詢社群文案進度');
       }
-      if (data.status === 'completed' && data.fbCopy && data.igCopy) {
+      if (
+        data.status === 'completed' &&
+        data.fbImageTitle &&
+        data.fbVisual &&
+        data.fbCopy &&
+        data.igCopy
+      ) {
         update({
           socialJobId: '',
+          fbImageTitle: data.fbImageTitle,
+          fbVisual: data.fbVisual,
           fbCopy: data.fbCopy,
           igCopy: data.igCopy,
         });
@@ -1013,7 +1037,13 @@ export default function Home() {
       const code = accessCode.trim();
       let responseId = forceNew ? '' : state.socialJobId;
       if (forceNew) {
-        update({ socialJobId: '', fbCopy: '', igCopy: '' });
+        update({
+          socialJobId: '',
+          fbImageTitle: '',
+          fbVisual: '',
+          fbCopy: '',
+          igCopy: '',
+        });
       }
       if (!responseId) {
         setSocialStatus('正在建立 OpenAI 社群文案任務…');
@@ -1039,7 +1069,13 @@ export default function Home() {
           throw new Error(data.error || '無法建立背景社群文案任務');
         }
         responseId = data.responseId;
-        update({ socialJobId: responseId, fbCopy: '', igCopy: '' });
+        update({
+          socialJobId: responseId,
+          fbImageTitle: '',
+          fbVisual: '',
+          fbCopy: '',
+          igCopy: '',
+        });
       }
       await pollSocial(responseId, code);
     } catch (error) {
@@ -2071,13 +2107,50 @@ export default function Home() {
                         </Button>
                       )}
                     </div>
+                    {(state.fbImageTitle || state.fbVisual) && (
+                      <div className="mt-4 grid gap-4 rounded-2xl border border-[#d4af64]/30 bg-[#d4af64]/8 p-4">
+                        <label
+                          htmlFor="facebook-image-title"
+                          className="grid gap-2 text-xs font-bold text-[#6f541f]"
+                        >
+                          首圖圖片標題
+                          <Input
+                            id="facebook-image-title"
+                            aria-label="Facebook 首圖圖片標題"
+                            value={state.fbImageTitle}
+                            onChange={(event) =>
+                              update({ fbImageTitle: event.target.value })
+                            }
+                            className="bg-white"
+                          />
+                        </label>
+                        <label
+                          htmlFor="facebook-visual-direction"
+                          className="grid gap-2 text-xs font-bold text-[#6f541f]"
+                        >
+                          首圖視覺方向
+                          <Textarea
+                            id="facebook-visual-direction"
+                            aria-label="Facebook 首圖視覺方向"
+                            value={state.fbVisual}
+                            onChange={(event) =>
+                              update({ fbVisual: event.target.value })
+                            }
+                            className="min-h-24 bg-white text-sm leading-6"
+                          />
+                        </label>
+                        <p className="text-xs leading-5 text-muted-foreground">
+                          首圖建議獨立顯示，不會混入下方複製的貼文內容。
+                        </p>
+                      </div>
+                    )}
                     <Textarea
                       aria-label="Facebook 宣傳文案"
                       value={state.fbCopy}
                       onChange={(event) =>
                         update({ fbCopy: event.target.value })
                       }
-                      placeholder="產生適合 Facebook 的生活場景型文案。"
+                      placeholder="依 Hook、痛點、轉折、價值與 CTA 產生 Facebook 文案。"
                       className="mt-4 min-h-[420px] text-sm leading-7"
                     />
                   </section>

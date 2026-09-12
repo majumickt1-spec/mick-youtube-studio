@@ -81,11 +81,15 @@ ${input.script || '未提供，僅依主題與標題撰寫'}
 - 避免「首先、其次、最後、值得注意的是、綜上所述」等制式 AI 語氣。
 
 【Facebook 文案】
-- 約 350–550 個繁體中文字，適合 Facebook 閱讀節奏。
-- 第一行用生活痛點或反常觀點讓人停下來，接著用 3–5 段短文說清楚影片價值。
-- 可加入 2–3 點條列，但不要把整篇寫成清單。
-- 結尾只保留一個行動：「完整影片：〔上架後貼入影片連結〕」。
-- 最後放 3–5 個相關 Hashtag。
+- 另提供「首圖圖片標題」與「首圖視覺方向」。圖片標題要短、有停留感且不誇大；視覺方向要是一句可執行的構圖說明，不要生成圖片。
+- 貼文約 350–550 個繁體中文字，依序完成：Hook → 情境／痛點 → 轉折／轉機 → 價值／總結 → CTA。
+- Hook 必須放在前 3 行，用生活痛點、反常觀點或懸念讓讀者願意點開「查看更多」，不要一開始就介紹影片。
+- 情境／痛點要具體、有共鳴；轉折要給出核心觀點、破局方法或知識點；價值段用一句可收藏的金句收束。
+- 核心價值可使用 2–3 點條列，讓讀者快速掃讀，但不要把整篇寫成清單。
+- 每段不超過 2–3 行，段落之間空一行；全文 Emoji 建議 3–5 個且絕不超過 8 個，只用 📌、💡、🔑、👇 等符號建立視覺焦點。
+- 重要關鍵字使用【中括號】或「引號」標示，不使用 Markdown 粗體符號。
+- CTA 以引導觀看影片為主要行動，固定寫「完整影片：〔上架後貼入影片連結〕」，最後放 3–5 個相關 Hashtag。
+- 輸出的 fbCopy 只能放可直接發布的貼文，不要混入首圖說明、段落名稱或寫作註解。
 
 【Instagram 文案】
 - 約 180–320 個繁體中文字，短句、留白明確，適合手機閱讀。
@@ -98,13 +102,19 @@ ${input.script || '未提供，僅依主題與標題撰寫'}
 
 function parsePackage(text: string) {
   const parsed = JSON.parse(text) as {
+    fbImageTitle?: unknown;
+    fbVisual?: unknown;
     fbCopy?: unknown;
     igCopy?: unknown;
   };
+  const fbImageTitle = validString(parsed.fbImageTitle, 100);
+  const fbVisual = validString(parsed.fbVisual, 500);
   const fbCopy = validString(parsed.fbCopy, 8_000);
   const igCopy = validString(parsed.igCopy, 5_000);
-  if (!fbCopy || !igCopy) throw new Error('社群文案結果格式不完整');
-  return { fbCopy, igCopy };
+  if (!fbImageTitle || !fbVisual || !fbCopy || !igCopy) {
+    throw new Error('社群文案結果格式不完整');
+  }
+  return { fbImageTitle, fbVisual, fbCopy, igCopy };
 }
 
 export async function POST(request: Request) {
@@ -161,10 +171,12 @@ export async function POST(request: Request) {
               schema: {
                 type: 'object',
                 properties: {
+                  fbImageTitle: { type: 'string' },
+                  fbVisual: { type: 'string' },
                   fbCopy: { type: 'string' },
                   igCopy: { type: 'string' },
                 },
-                required: ['fbCopy', 'igCopy'],
+                required: ['fbImageTitle', 'fbVisual', 'fbCopy', 'igCopy'],
                 additionalProperties: false,
               },
             },
