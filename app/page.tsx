@@ -165,6 +165,7 @@ type SavedState = {
   script: string;
   description: string;
   editPlan: string;
+  socialJobId: string;
   fbCopy: string;
   igCopy: string;
 };
@@ -192,6 +193,7 @@ const initialState: SavedState = {
   script: '',
   description: '',
   editPlan: '',
+  socialJobId: '',
   fbCopy: '',
   igCopy: '',
 };
@@ -263,14 +265,6 @@ function buildEditPlan(state: SavedState) {
   return `# ${state.selectedTitle || state.selectedTopic}｜AI 剪輯任務\n\n## 節奏\n開場 10 秒快速建立「薪水消失」的危機感；觀念段保留停頓；方法段加入條列與關鍵字畫面；結尾回到 1 倍與 2 倍。\n\n## 必留重點\n觀眾痛點：${state.keyword}\n米克補充：${state.supplement || '無'}\n\n## 畫面規則\n黑白金、溫暖寫實、家庭感；不使用卡通人物、通用商務人物或暴富視覺。字幕保持繁體中文，關鍵數字只強調「1×」與「2×」。\n\n## 交付\n16:9 YouTube 主片、去除明顯停頓與口誤、保留自然呼吸；需由米克大叔看片確認後才能定稿。`;
 }
 
-function buildSocialCopy(state: SavedState) {
-  const title = state.selectedTitle || state.selectedTopic;
-  return {
-    fbCopy: `如果明天薪水停了，你現在的現金流可以撐多久？\n\n很多人談理財，第一個想到的是投資報酬率。但對一個有家庭責任的上班族來說，更早該問的是：我有多少收入，不需要靠每天上班才能得到？\n\n這支新影片，我想用「${title}」陪你重新看懂薪水、支出與人生選擇權之間的關係。\n\n1 倍，是財富自由的門檻；2 倍，才是可以掉、可以修、可以等、可以拒絕的餘裕。\n\n影片連結：〔上架後貼入〕`,
-    igCopy: `薪水，是收入。\n但不該是唯一的安全感。\n\n這次從「${title}」開始，重新看懂現金流。\n\n管理現金流｜降低薪水依賴｜拿回人生選擇權\n\n完整影片：個人檔案連結\n\n#現金流 #薪水依賴 #財務自由 #AI副業 #米克大叔`,
-  };
-}
-
 export default function Home() {
   const [stage, setStage] = useState('0');
   const [state, setState] = useState<SavedState>(initialState);
@@ -307,6 +301,9 @@ export default function Home() {
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [scriptStatus, setScriptStatus] = useState('');
   const [scriptError, setScriptError] = useState('');
+  const [isGeneratingSocial, setIsGeneratingSocial] = useState(false);
+  const [socialStatus, setSocialStatus] = useState('');
+  const [socialError, setSocialError] = useState('');
   const titles = useMemo(
     () => makeTitles(state.selectedTopic, state.pillar),
     [state.selectedTopic, state.pillar],
@@ -451,6 +448,10 @@ export default function Home() {
       scriptJobId: '',
       script: '',
       description: '',
+      editPlan: '',
+      socialJobId: '',
+      fbCopy: '',
+      igCopy: '',
     });
     setThumbnailImages(['', '', '']);
     setGoogleThumbnailImages(['', '', '']);
@@ -458,6 +459,8 @@ export default function Home() {
     setThumbnailError({ openai: '', google: '' });
     setScriptStatus('');
     setScriptError('');
+    setSocialStatus('');
+    setSocialError('');
     setSearchPhase('');
     setSearchError('');
   }
@@ -478,6 +481,8 @@ export default function Home() {
     setGoogleThumbnailImages(['', '', '']);
     setThumbnailStatus({ openai: '', google: '' });
     setThumbnailError({ openai: '', google: '' });
+    setSocialStatus('');
+    setSocialError('');
     update({
       selectedTopic: topic,
       selectedTitle: '',
@@ -486,6 +491,10 @@ export default function Home() {
       scriptJobId: '',
       script: '',
       description: '',
+      editPlan: '',
+      socialJobId: '',
+      fbCopy: '',
+      igCopy: '',
     });
   }
 
@@ -497,6 +506,8 @@ export default function Home() {
     setThumbnailError({ openai: '', google: '' });
     setScriptStatus('');
     setScriptError('');
+    setSocialStatus('');
+    setSocialError('');
     update({
       selectedTitle: title,
       thumbnailJobs: [],
@@ -504,6 +515,10 @@ export default function Home() {
       scriptJobId: '',
       script: '',
       description: '',
+      editPlan: '',
+      socialJobId: '',
+      fbCopy: '',
+      igCopy: '',
     });
   }
   async function pollResearch(responseId: string, code: string) {
@@ -860,6 +875,7 @@ export default function Home() {
           script: data.script,
           description: removeDescriptionSources(data.description),
           editPlan: '',
+          socialJobId: '',
           fbCopy: '',
           igCopy: '',
         });
@@ -924,6 +940,7 @@ export default function Home() {
           script: '',
           description: '',
           editPlan: '',
+          socialJobId: '',
           fbCopy: '',
           igCopy: '',
         });
@@ -936,6 +953,102 @@ export default function Home() {
       );
     } finally {
       setIsGeneratingScript(false);
+    }
+  }
+
+  async function pollSocial(responseId: string, code: string) {
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      const response = await fetch('/api/social-copy', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          phase: 'status',
+          accessCode: code,
+          responseId,
+        }),
+      });
+      const data = (await response.json()) as {
+        status?: string;
+        fbCopy?: string;
+        igCopy?: string;
+        error?: string;
+      };
+      if (!response.ok) {
+        update({ socialJobId: '' });
+        throw new Error(data.error || '無法查詢社群文案進度');
+      }
+      if (data.status === 'completed' && data.fbCopy && data.igCopy) {
+        update({
+          socialJobId: '',
+          fbCopy: data.fbCopy,
+          igCopy: data.igCopy,
+        });
+        setSocialStatus(
+          'Facebook 與 Instagram 文案已完成，可以直接修改或複製。',
+        );
+        return;
+      }
+      setSocialStatus('OpenAI 正在撰寫 Facebook 與 Instagram 文案…');
+      await new Promise((resolve) => window.setTimeout(resolve, 2500));
+    }
+    throw new Error(
+      '社群文案仍在背景撰寫。稍後再按「查看文案進度」，不會重新產生或重複計費。',
+    );
+  }
+
+  async function generateSocial(forceNew = false) {
+    setSocialError('');
+    if (!state.selectedTitle) {
+      setSocialError('請先完成選題並選定影片標題。');
+      return;
+    }
+    if (!accessCode.trim()) {
+      setSocialError('請先輸入平台使用碼。');
+      return;
+    }
+
+    setIsGeneratingSocial(true);
+    window.sessionStorage.setItem('studio-access-code', accessCode.trim());
+    try {
+      const code = accessCode.trim();
+      let responseId = forceNew ? '' : state.socialJobId;
+      if (forceNew) {
+        update({ socialJobId: '', fbCopy: '', igCopy: '' });
+      }
+      if (!responseId) {
+        setSocialStatus('正在建立 OpenAI 社群文案任務…');
+        const response = await fetch('/api/social-copy', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            phase: 'generate',
+            accessCode: code,
+            pillar: state.pillar,
+            topic: state.selectedTopic,
+            title: state.selectedTitle,
+            painPoint: state.keyword,
+            description: state.description,
+            script: state.script,
+          }),
+        });
+        const data = (await response.json()) as {
+          responseId?: string;
+          error?: string;
+        };
+        if (!response.ok || !data.responseId) {
+          throw new Error(data.error || '無法建立背景社群文案任務');
+        }
+        responseId = data.responseId;
+        update({ socialJobId: responseId, fbCopy: '', igCopy: '' });
+      }
+      await pollSocial(responseId, code);
+    } catch (error) {
+      setSocialStatus('');
+      setSocialError(
+        error instanceof Error ? error.message : '社群文案生成暫時無法使用',
+      );
+    } finally {
+      setIsGeneratingSocial(false);
     }
   }
 
@@ -1885,13 +1998,62 @@ export default function Home() {
               />
             ) : (
               <>
-                <Button
-                  className="gold-button"
-                  onClick={() => update(buildSocialCopy(state))}
-                >
-                  <Share2 className="size-4" />
-                  {state.fbCopy ? '重新產生宣傳文案' : '產生 FB＋IG 文案'}
-                </Button>
+                <section className="surface-card p-5 md:p-6">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(220px,360px)_auto] lg:items-end">
+                    <label
+                      htmlFor="social-access-code"
+                      className="grid gap-2 text-sm font-bold"
+                    >
+                      平台使用碼
+                      <Input
+                        id="social-access-code"
+                        type="password"
+                        value={accessCode}
+                        onChange={(event) => setAccessCode(event.target.value)}
+                        placeholder="與前面步驟使用同一組代碼"
+                        autoComplete="current-password"
+                      />
+                    </label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button
+                        className="gold-button"
+                        disabled={isGeneratingSocial}
+                        onClick={() =>
+                          void generateSocial(
+                            Boolean(state.fbCopy || state.igCopy),
+                          )
+                        }
+                      >
+                        {isGeneratingSocial ? (
+                          <LoaderCircle className="size-4 animate-spin" />
+                        ) : (
+                          <Share2 className="size-4" />
+                        )}
+                        {isGeneratingSocial
+                          ? '撰寫中…'
+                          : state.socialJobId
+                            ? '查看文案進度'
+                            : state.fbCopy || state.igCopy
+                              ? '重新產生宣傳文案'
+                              : '產生 FB＋IG 文案'}
+                      </Button>
+                      <span className="text-xs leading-5 text-muted-foreground">
+                        使用 OpenAI
+                        API，依影片主題與腳本分別調整成兩個平台的閱讀節奏。
+                      </span>
+                    </div>
+                  </div>
+                  {socialStatus && (
+                    <div className="mt-4 rounded-xl border border-[#d4af64]/30 bg-[#d4af64]/10 px-4 py-3 text-sm text-[#6f541f]">
+                      {socialStatus}
+                    </div>
+                  )}
+                  {socialError && (
+                    <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {socialError}
+                    </div>
+                  )}
+                </section>
                 <div className="mt-5 grid gap-5 lg:grid-cols-2">
                   <section className="surface-card p-5 md:p-7">
                     <div className="flex items-center justify-between">
