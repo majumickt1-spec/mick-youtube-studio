@@ -31,7 +31,6 @@ import {
   NotebookPen,
   Play,
   Radar,
-  Scissors,
   Share2,
   Sparkles,
   WandSparkles,
@@ -56,7 +55,6 @@ const steps = [
     icon: ImageIcon,
   },
   { label: '腳本創作', detail: '口語腳本＋資訊欄文案', icon: NotebookPen },
-  { label: 'AI 剪輯', detail: '透過剪輯 Skill 建立成片', icon: Scissors },
   { label: '社群宣傳', detail: 'Facebook＋Instagram 文案', icon: Share2 },
 ];
 
@@ -164,7 +162,6 @@ type SavedState = {
   scriptJobId: string;
   script: string;
   description: string;
-  editPlan: string;
   socialJobId: string;
   fbImageTitle: string;
   fbVisual: string;
@@ -196,7 +193,6 @@ const initialState: SavedState = {
   scriptJobId: '',
   script: '',
   description: '',
-  editPlan: '',
   socialJobId: '',
   fbImageTitle: '',
   fbVisual: '',
@@ -267,10 +263,6 @@ function makeTitles(topic: string, pillar: string) {
     '如果明天沒有薪水，你現在的現金流撐得住嗎？',
     '別只看賺多少：真正重要的是你還有多依賴薪水',
   ];
-}
-
-function buildEditPlan(state: SavedState) {
-  return `# ${state.selectedTitle || state.selectedTopic}｜AI 剪輯任務\n\n## 節奏\n開場 10 秒快速建立「薪水消失」的危機感；觀念段保留停頓；方法段加入條列與關鍵字畫面；結尾回到 1 倍與 2 倍。\n\n## 必留重點\n觀眾痛點：${state.keyword}\n米克補充：${state.supplement || '無'}\n\n## 畫面規則\n黑白金、溫暖寫實、家庭感；不使用卡通人物、通用商務人物或暴富視覺。字幕保持繁體中文，關鍵數字只強調「1×」與「2×」。\n\n## 交付\n16:9 YouTube 主片、去除明顯停頓與口誤、保留自然呼吸；需由米克大叔看片確認後才能定稿。`;
 }
 
 export default function Home() {
@@ -352,7 +344,6 @@ export default function Home() {
     Boolean(state.selectedTopic),
     Boolean(state.selectedTitle),
     Boolean(state.script) && Boolean(state.description),
-    Boolean(state.editPlan),
     Boolean(state.fbCopy) && Boolean(state.igCopy),
   ];
 
@@ -417,15 +408,15 @@ export default function Home() {
           description: '在 YT-AI Agent創作平台(CX) 中開啟指定階段。',
           inputSchema: {
             type: 'object',
-            properties: { stage: { type: 'integer', minimum: 1, maximum: 5 } },
+            properties: { stage: { type: 'integer', minimum: 1, maximum: 4 } },
             required: ['stage'],
             additionalProperties: false,
           },
           annotations: { readOnlyHint: false, untrustedContentHint: false },
           execute: (input: unknown) => {
             const value = (input as { stage?: number })?.stage;
-            if (!Number.isInteger(value) || !value || value < 1 || value > 5)
-              throw new Error('stage 必須是 1 到 5');
+            if (!Number.isInteger(value) || !value || value < 1 || value > 4)
+              throw new Error('stage 必須是 1 到 4');
             setStage(String(value - 1));
             return { stage: value, label: steps[value - 1].label };
           },
@@ -456,7 +447,6 @@ export default function Home() {
       scriptJobId: '',
       script: '',
       description: '',
-      editPlan: '',
       socialJobId: '',
       fbImageTitle: '',
       fbVisual: '',
@@ -503,7 +493,6 @@ export default function Home() {
       scriptJobId: '',
       script: '',
       description: '',
-      editPlan: '',
       socialJobId: '',
       fbImageTitle: '',
       fbVisual: '',
@@ -531,7 +520,6 @@ export default function Home() {
       scriptJobId: '',
       script: '',
       description: '',
-      editPlan: '',
       socialJobId: '',
       fbImageTitle: '',
       fbVisual: '',
@@ -894,7 +882,6 @@ export default function Home() {
           scriptJobId: '',
           script: data.script,
           description: removeDescriptionSources(data.description),
-          editPlan: '',
           socialJobId: '',
           fbImageTitle: '',
           fbVisual: '',
@@ -963,7 +950,6 @@ export default function Home() {
           scriptJobId: responseId,
           script: '',
           description: '',
-          editPlan: '',
           socialJobId: '',
           fbImageTitle: '',
           fbVisual: '',
@@ -1215,7 +1201,7 @@ export default function Home() {
             <p className="font-semibold tracking-wide">
               YT-AI Agent創作平台(CX)
             </p>
-            <p className="text-xs text-white/48">五步完成一支影片</p>
+            <p className="text-xs text-white/48">四步完成創作與宣傳</p>
           </div>
         </div>
         <p className="mt-10 px-2 text-xs font-semibold tracking-[0.18em] text-[#d4af64]">
@@ -1261,7 +1247,7 @@ export default function Home() {
             <Menu className="size-4" />
             <span className="text-xs">創作航線</span>
           </div>
-          <TabsList className="grid h-auto w-full grid-cols-5 bg-white/5 p-1">
+          <TabsList className="grid h-auto w-full grid-cols-4 bg-white/5 p-1">
             {steps.map((step, index) => (
               <TabsTrigger
                 key={step.label}
@@ -1961,7 +1947,7 @@ export default function Home() {
                   disabled={!state.script || !state.description}
                   onClick={() => go(3)}
                 >
-                  腳本確認，進入 AI 剪輯
+                  腳本確認，產生宣傳文案
                 </NextButton>
               </>
             )}
@@ -1971,83 +1957,6 @@ export default function Home() {
         <TabsContent value="3">
           <StageShell
             step="STEP 04"
-            eyebrow="把腳本轉成剪輯 Skill 能直接執行的任務"
-            title="AI 剪輯：先整理交付，再進入成片。"
-          >
-            {!state.script ? (
-              <Blocked
-                text="先完成腳本，剪輯任務才有可用素材。"
-                onClick={() => go(2)}
-              />
-            ) : (
-              <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
-                <section className="surface-card p-5 md:p-7">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-bold">剪輯 Skill 任務單</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        包含節奏、必留原話、畫面規則與輸出格式。
-                      </p>
-                    </div>
-                    <Button
-                      className="gold-button"
-                      onClick={() => update({ editPlan: buildEditPlan(state) })}
-                    >
-                      <Scissors className="size-4" />
-                      {state.editPlan ? '重新整理任務' : '建立剪輯任務'}
-                    </Button>
-                  </div>
-                  <Textarea
-                    aria-label="AI 剪輯任務單"
-                    value={state.editPlan}
-                    onChange={(event) =>
-                      update({ editPlan: event.target.value })
-                    }
-                    placeholder="按下「建立剪輯任務」，把腳本整理成剪輯 Skill 的輸入。"
-                    className="mt-5 min-h-[560px] font-mono text-sm leading-7"
-                  />
-                  {state.editPlan && (
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={() =>
-                        copyText(state.editPlan, '剪輯任務已複製。')
-                      }
-                    >
-                      <Copy className="size-4" />
-                      複製
-                    </Button>
-                  )}
-                </section>
-                <aside className="rounded-[28px] bg-[#151515] p-6 text-white">
-                  <p className="text-xs font-semibold tracking-[0.16em] text-[#d4af64]">
-                    連接狀態
-                  </p>
-                  <h3 className="mt-3 text-xl font-bold">
-                    剪輯 Skill 尚未接入網站
-                  </h3>
-                  <p className="mt-3 text-sm leading-7 text-white/60">
-                    目前可產生完整剪輯任務單，但還不能在這個 Vercel
-                    網站直接上傳影片並輸出成片。完成 Skill
-                    與影片處理服務後，這裡會接上執行與進度。
-                  </p>
-                  <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/70">
-                    不會把「產生任務單」假裝成「影片已剪好」。每支影片仍需本人看片確認。
-                  </div>
-                </aside>
-                <div className="xl:col-span-2">
-                  <NextButton disabled={!state.editPlan} onClick={() => go(4)}>
-                    剪輯任務確認，產生宣傳文案
-                  </NextButton>
-                </div>
-              </div>
-            )}
-          </StageShell>
-        </TabsContent>
-
-        <TabsContent value="4">
-          <StageShell
-            step="STEP 05"
             eyebrow="同一支影片，轉成不同平台會有人停下來的語氣"
             title="Facebook 與 Instagram 宣傳文案。"
           >
