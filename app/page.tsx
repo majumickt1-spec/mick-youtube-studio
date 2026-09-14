@@ -51,7 +51,7 @@ const steps = [
   { label: '選題雷達', detail: '靈感狀態＋方向＋痛點與來源', icon: Radar },
   {
     label: '縮圖生成',
-    detail: 'GPT Image 2＋Nano Banana Pro 各 3 組',
+    detail: 'GPT Image 2.5＋Nano Banana Pro 各 3 組',
     icon: ImageIcon,
   },
   { label: '腳本創作', detail: '口語腳本＋資訊欄文案', icon: NotebookPen },
@@ -321,7 +321,7 @@ export default function Home() {
   }> = [
     {
       id: 'openai',
-      name: 'GPT Image 2',
+      name: 'GPT Image 2.5',
       detail: 'OpenAI｜1536×864 WebP',
       jobs: state.thumbnailJobs,
       images: thumbnailImages,
@@ -647,7 +647,7 @@ export default function Home() {
     code: string,
   ) {
     const providerName =
-      provider === 'openai' ? 'GPT Image 2' : 'Nano Banana Pro';
+      provider === 'openai' ? 'GPT Image 2.5' : 'Nano Banana Pro';
     const pending = new Map(jobs.map((job) => [job.responseId, job]));
     const images = ['', '', ''];
     const failures: string[] = [];
@@ -721,7 +721,7 @@ export default function Home() {
     forceNew = false,
   ) {
     const providerName =
-      provider === 'openai' ? 'GPT Image 2' : 'Nano Banana Pro';
+      provider === 'openai' ? 'GPT Image 2.5' : 'Nano Banana Pro';
     setThumbnailError((current) => ({ ...current, [provider]: '' }));
     if (!state.selectedTitle) {
       setThumbnailError((current) => ({
@@ -1608,7 +1608,7 @@ export default function Home() {
           <StageShell
             step="STEP 02"
             eyebrow="兩個模型各自產圖，中文字留到後續疊加"
-            title="GPT Image 2 與 Nano Banana Pro，各生成 3 組無字縮圖。"
+            title="GPT Image 2.5 與 Nano Banana Pro，各生成 3 組無字縮圖。"
           >
             {!state.selectedTopic ? (
               <Blocked

@@ -3,7 +3,7 @@ export const maxDuration = 60;
 const OPENAI_URL = 'https://api.openai.com/v1';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta';
 const DEFAULT_TEXT_MODEL = 'gpt-5.6-luna';
-const DEFAULT_OPENAI_IMAGE_MODEL = 'gpt-image-2';
+const DEFAULT_OPENAI_IMAGE_MODEL = 'gpt-image-2.5-flare';
 const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3-pro-image';
 
 type ThumbnailProvider = 'openai' | 'google';
@@ -66,7 +66,7 @@ async function openAIRequest(
   });
   const data = (await response.json()) as OpenAIResponse;
   if (!response.ok) {
-    throw new Error(data.error?.message || 'GPT Image 2 暫時無法使用');
+    throw new Error(data.error?.message || 'GPT Image 2.5 暫時無法使用');
   }
   return data;
 }
@@ -276,7 +276,7 @@ export async function POST(request: Request) {
                 ],
               }),
             });
-            if (!result.id) throw new Error('未取得 GPT Image 2 任務編號');
+            if (!result.id) throw new Error('未取得 GPT Image 2.5 任務編號');
             jobs.push({ index, responseId: result.id });
           } else {
             throw new Error('Nano Banana Pro 請改用逐張生成流程。');
@@ -327,7 +327,7 @@ export async function POST(request: Request) {
           throw new Error(
             result.error?.message ||
               result.incomplete_details?.reason ||
-              'GPT Image 2 縮圖生成未能完成。',
+              'GPT Image 2.5 縮圖生成未能完成。',
           );
         }
         const imageBase64 = (result.output || []).find(
