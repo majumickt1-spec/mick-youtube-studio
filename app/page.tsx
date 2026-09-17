@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import { makeTitles } from '@/lib/title-rules';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -246,22 +247,6 @@ function makeCandidates(keyword: string, pillar: string, topicMode: string) {
     `1 倍只是自由門檻：為什麼非工資收入要做到支出的 2 倍？`,
     `投資前先算這個數字：你家的現金流安全天數`,
     `房貸不是只看利率：它每個月拿走多少人生選擇權？`,
-  ];
-}
-
-function makeTitles(topic: string, pillar: string) {
-  const base = topic || '家庭現金流出了問題';
-  if (pillar === 'AI資產建立') {
-    return [
-      base.split('｜')[0],
-      '這份 AI 副業是在賺收入，還是在建立資產？',
-      '別急著學下一個 AI 工具：先驗證有沒有人願意付錢',
-    ];
-  }
-  return [
-    base.split('｜')[0],
-    '如果明天沒有薪水，你現在的現金流撐得住嗎？',
-    '別只看賺多少：真正重要的是你還有多依賴薪水',
   ];
 }
 
@@ -1625,7 +1610,10 @@ export default function Home() {
                     </p>
                     <div className="mt-6 space-y-3">
                       <p className="text-sm font-bold">選一個標題</p>
-                      {titles.map((title) => (
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        反常、金額、數字開頭；金額只採用與主題相關的已提供事實，沒有合適資料就不編造。
+                      </p>
+                      {titles.map(({ kind, title }) => (
                         <button
                           key={title}
                           onClick={() => selectTitle(title)}
@@ -1638,7 +1626,12 @@ export default function Home() {
                               <Check className="size-3" />
                             )}
                           </span>
-                          {title}
+                          <span>
+                            <span className="mb-1 block text-xs font-semibold text-[#8b6c2d]">
+                              {kind}
+                            </span>
+                            {title}
+                          </span>
                         </button>
                       ))}
                     </div>
