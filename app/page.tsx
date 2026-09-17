@@ -1825,7 +1825,7 @@ export default function Home() {
         <TabsContent value="2">
           <StageShell
             step="STEP 03"
-            eyebrow="依選題條件寫稿，主片與資訊欄一次完成"
+            eyebrow="12 段故事架構＋米克大叔 S1–S18 真實故事庫"
             title="腳本創作與資訊欄文案。"
           >
             {!state.selectedTopic ? (
@@ -1873,8 +1873,7 @@ export default function Home() {
                               : '產生腳本與資訊欄'}
                       </Button>
                       <span className="text-xs leading-5 text-muted-foreground">
-                        使用 OpenAI
-                        API；只採用已提供或已查證資料，不補不存在的經歷、成果或網址。
+                        使用 OpenAI API；依主題選用相關真實故事，不補造人物、對話、成果或網址。
                       </span>
                     </div>
                   </div>
