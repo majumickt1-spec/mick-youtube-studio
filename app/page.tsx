@@ -1818,7 +1818,7 @@ export default function Home() {
         <TabsContent value="2">
           <StageShell
             step="STEP 03"
-            eyebrow="12 段故事架構＋米克大叔 S1–S18 真實故事庫"
+            eyebrow="11 段故事架構＋米克大叔 S1–S18 真實故事庫"
             title="腳本創作與資訊欄文案。"
           >
             {!state.selectedTopic ? (
@@ -1921,7 +1921,7 @@ export default function Home() {
                       )}
                     </div>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      已依摘要、三個收穫、免費工具、品牌句與標籤分段排版，可直接貼到
+                      已依摘要、三個收穫、品牌句與標籤分段排版，可直接貼到
                       YouTube。
                     </p>
                     <Textarea
