@@ -119,9 +119,12 @@ function finalPrompt(
   return `DELIVERABLE
 Create exactly one premium photorealistic 16:9 YouTube thumbnail background for a Taiwanese personal-finance creator. It must remain clear at phone size and leave usable negative space for a headline added later.
 
-EPISODE
-Video topic: ${topic}
-Working title: ${title}
+SELECTED TITLE — PRIMARY CREATIVE BRIEF
+${title}
+The image must be designed from this selected title's specific promise, conflict, subject, and stakes. Do not replace it with a generic image about the broader topic.
+
+SECONDARY CONTEXT
+Broader topic: ${topic}
 Content pillar: ${pillar}
 
 VISUAL DIRECTION
@@ -129,7 +132,7 @@ ${prompt}
 
 COMPOSITION
 ${compositions[compositionIndex] || compositions[0]}
-Follow this assigned composition rather than repeating a desk portrait. Do not draw a fake interface screenshot.
+Follow this assigned composition while expressing the selected title, rather than repeating a desk portrait or merely illustrating the broader topic. Do not draw a fake interface screenshot.
 
 STYLE
 Premium photorealistic editorial photography. Black and white are the base; gold is only a small restrained accent, never glowing wealth imagery. Trustworthy, emotionally clear, Taiwanese everyday context, strong subject separation, and realistic materials. Do not default to an amber night scene.

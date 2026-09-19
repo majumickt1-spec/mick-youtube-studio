@@ -1655,10 +1655,10 @@ export default function Home() {
                           </div>
                           <div className="mt-5 rounded-2xl border border-[#d4af64]/30 bg-[#faf8f1] p-4">
                             <p className="text-sm font-semibold">
-                              依本集主題與標題動態生成：情緒衝突、生活情境、象徵對比。
+                              完全依照你選定的影片標題，設計情緒衝突、生活情境、象徵對比三種縮圖。
                             </p>
                             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                              重新生成會輪替鏡位、光線與畫面配置，並使用{' '}
+                              三組縮圖大字也會從所選標題的關鍵衝突提煉；重新生成會輪替鏡位、光線與畫面配置，並使用{' '}
                               {provider.name} API 額度；圖片不放任何可見文字、數字或標誌。
                             </p>
                             <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
