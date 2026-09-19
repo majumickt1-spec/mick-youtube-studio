@@ -99,6 +99,14 @@ function parseJsonArray(text: string) {
   }>;
 }
 
+function parsePlannedTopics(text: string) {
+  const parsed = JSON.parse(text) as { candidates?: unknown };
+  if (!Array.isArray(parsed.candidates)) {
+    throw new Error('已有方向的選題結果格式不完整');
+  }
+  return [...new Set(parsed.candidates.map((item) => validString(item, 180)).filter(Boolean))];
+}
+
 function validString(value: unknown, maxLength: number) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
@@ -320,6 +328,85 @@ ${sourceList || '沒有取得可引用來源'}
         .filter((candidate) => candidate.title && candidate.angle)
         .slice(0, 8);
       if (candidates.length < 5) throw new Error('選題數量不足，請再試一次');
+      return Response.json({ candidates });
+    }
+
+    if (phase === 'plannedTopics') {
+      if (!['現金流管理', 'AI資產建立'].includes(pillar)) {
+        return Response.json({ error: '創作方向不正確。' }, { status: 400 });
+      }
+      if (!keyword) {
+        return Response.json(
+          { error: '請先輸入你已經有的選題方向。' },
+          { status: 400 },
+        );
+      }
+
+      const prompt = `你是台灣 YouTube 頻道的選題企劃。請把使用者提供的「已有方向」拆解成 5 個真正不同、各自能獨立拍成一支影片的候選選題。
+
+頻道核心：現金流。AI 只是建立副業資產、增加非工資收入、降低薪水依賴的手段。
+受眾：35–55 歲、有家庭責任、主要收入來自薪水的台灣上班族。
+創作方向：${pillar}
+使用者已有方向：${keyword}
+補充觀點／親身經驗／案例：${supplement || '未提供'}
+對標影片／參考來源／筆記：${references || '未提供'}
+
+5 個候選題必須分別採用不同企劃角度：
+1. 拆掉一個常見迷思或反直覺觀點。
+2. 放進一個受眾熟悉的家庭、工作或下班後生活場景。
+3. 診斷一個造成結果不佳的真正瓶頸。
+4. 提出一個可理解的系統、流程或前後對比。
+5. 提供一個能立即檢查或開始的最小行動。
+
+規則：
+- 每題只談一個明確問題、一個切角；五題不可只是同一句話換字。
+- 使用者輸入是企劃素材，不可原封不動放在每題開頭，也不要用「使用者方向：補充說明」的格式。
+- 每題約 16–34 個中文字，直接寫完整選題，不附註解、不加分類標籤。
+- 要讓觀眾看出「這支影片到底要解決什麼問題」，但這一步不是最終 YouTube 標題包裝。
+- 不可杜撰使用者的親身經歷、收入、成果、年份或金額；未提供的數字不要自行添加。
+- AI 類選題必須回到能否累積資產、驗證付費需求或降低工時依賴，不做單純工具介紹。
+- 現金流類選題必須回到家庭財務順序、資產負債表、安全天數、負債或每月剩餘現金。
+
+只輸出符合指定 JSON Schema 的結果。`;
+
+      const result = await openAIRequest(
+        apiKey,
+        '/responses',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            model,
+            reasoning: { effort: 'low' },
+            max_output_tokens: 1400,
+            input: prompt,
+            text: {
+              format: {
+                type: 'json_schema',
+                name: 'planned_topic_candidates',
+                strict: true,
+                schema: {
+                  type: 'object',
+                  properties: {
+                    candidates: {
+                      type: 'array',
+                      minItems: 5,
+                      maxItems: 5,
+                      items: { type: 'string' },
+                    },
+                  },
+                  required: ['candidates'],
+                  additionalProperties: false,
+                },
+              },
+            },
+          }),
+        },
+        52_000,
+      );
+      const candidates = parsePlannedTopics(textFrom(result)).slice(0, 5);
+      if (candidates.length !== 5) {
+        throw new Error('未能產生 5 個不同選題，請再試一次');
+      }
       return Response.json({ candidates });
     }
 

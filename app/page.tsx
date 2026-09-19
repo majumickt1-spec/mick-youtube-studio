@@ -166,44 +166,6 @@ function removeDescriptionSources(description: string) {
     .trim();
 }
 
-function makeCandidates(keyword: string, pillar: string, topicMode: string) {
-  const focus = keyword.trim() || '降低薪水依賴';
-  if (pillar === 'AI資產建立') {
-    if (topicMode === 'planned') {
-      return [
-        `${focus}：這份 AI 副業是在增加收入，還是在建立資產？`,
-        `${focus}：普通上班族可以先做的第一個 AI 資產`,
-        `${focus}：別急著換工具，先驗證有沒有人願意付錢`,
-        `${focus}：每天一小時，如何累積可重複銷售的內容資產？`,
-        `${focus}：從一次性接案走向可累積收入的三個步驟`,
-      ];
-    }
-    return [
-      `這份 AI 副業只是多打一份工，還是在累積資產？｜${focus}`,
-      `普通上班族怎麼用 AI，做出第一個有人願意付錢的數位產品？`,
-      `別再只學 AI 工具：先算它能不能替你增加非工資收入`,
-      `每天只有一小時，怎麼把 YouTube 內容變成可累積的收入資產？`,
-      `AI 副業沒賺錢，不一定是工具不夠強：你可能少了現金流驗證`,
-    ];
-  }
-  if (topicMode === 'planned') {
-    return [
-      `${focus}：先從家庭每月現金流找出真正問題`,
-      `${focus}：資產不少，為什麼還是沒有安全感？`,
-      `${focus}：用現金流安全天數看懂你能撐多久`,
-      `${focus}：哪些固定支出正在拿走你的選擇權？`,
-      `${focus}：從薪水依賴走向財務餘裕的第一步`,
-    ];
-  }
-  return [
-    `如果明天沒有薪水，你家的現金流能撐多久？｜${focus}`,
-    `資產不少卻不安心？先看每個月真正流進來多少錢`,
-    `1 倍只是自由門檻：為什麼非工資收入要做到支出的 2 倍？`,
-    `投資前先算這個數字：你家的現金流安全天數`,
-    `房貸不是只看利率：它每個月拿走多少人生選擇權？`,
-  ];
-}
-
 export default function Home() {
   const [stage, setStage] = useState('0');
   const [state, setState] = useState<SavedState>(initialState);
@@ -1065,22 +1027,56 @@ export default function Home() {
   async function generateCandidates() {
     setSearchError('');
     if (state.topicMode === 'planned') {
-      update({
-        candidates: makeCandidates(
-          state.keyword,
-          state.pillar,
-          state.topicMode,
-        ),
-        candidateDetails: [],
-        selectedTopic: '',
-        selectedTitle: '',
-        thumbnailJobs: [],
-        googleThumbnailJobs: [],
-        thumbnailVariations: { openai: 0, google: 0 },
-        scriptJobId: '',
-        script: '',
-        description: '',
-      });
+      if (!accessCode.trim()) {
+        setSearchError('請先輸入平台使用碼。');
+        return;
+      }
+      setIsSearching(true);
+      setActiveSearchAction('topics');
+      setSearchPhase('正在分析你的方向，拆成 5 個不同企劃角度…');
+      window.sessionStorage.setItem('studio-access-code', accessCode.trim());
+      try {
+        const response = await fetch('/api/topic-radar', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            phase: 'plannedTopics',
+            accessCode: accessCode.trim(),
+            pillar: state.pillar,
+            keyword: state.keyword,
+            supplement: state.supplement,
+            references: state.sources,
+          }),
+        });
+        const data = (await response.json()) as {
+          candidates?: string[];
+          error?: string;
+        };
+        if (!response.ok || data.candidates?.length !== 5) {
+          throw new Error(data.error || '無法產生 5 個不同候選題');
+        }
+        update({
+          candidates: data.candidates,
+          candidateDetails: [],
+          selectedTopic: '',
+          selectedTitle: '',
+          thumbnailJobs: [],
+          googleThumbnailJobs: [],
+          thumbnailVariations: { openai: 0, google: 0 },
+          scriptJobId: '',
+          script: '',
+          description: '',
+        });
+        setSearchPhase('');
+      } catch (error) {
+        setSearchPhase('');
+        setSearchError(
+          error instanceof Error ? error.message : '選題發想暫時無法使用',
+        );
+      } finally {
+        setIsSearching(false);
+        setActiveSearchAction('');
+      }
       return;
     }
     if (!accessCode.trim()) {
@@ -1339,20 +1335,18 @@ export default function Home() {
                   className="min-h-28"
                 />
               </Field>
-              {state.topicMode === 'trend' && (
-                <Field label="平台使用碼" className="mt-5">
-                  <Input
-                    type="password"
-                    value={accessCode}
-                    onChange={(event) => setAccessCode(event.target.value)}
-                    placeholder="用來保護你的 OpenAI API 額度"
-                    autoComplete="current-password"
-                  />
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    這不是 OpenAI API Key，只會暫存在目前瀏覽器分頁。
-                  </p>
-                </Field>
-              )}
+              <Field label="平台使用碼" className="mt-5">
+                <Input
+                  type="password"
+                  value={accessCode}
+                  onChange={(event) => setAccessCode(event.target.value)}
+                  placeholder="用來保護你的 OpenAI API 額度"
+                  autoComplete="current-password"
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  這不是 OpenAI API Key，只會暫存在目前瀏覽器分頁。
+                </p>
+              </Field>
               {state.topicMode === 'trend' ? (
                 <div className="mt-5 flex flex-wrap items-center gap-3">
                   <Button
@@ -1392,14 +1386,20 @@ export default function Home() {
                   <Button
                     size="lg"
                     className="gold-button"
-                    disabled={!state.keyword.trim()}
+                    disabled={isSearching || !state.keyword.trim()}
                     onClick={() => void generateCandidates()}
                   >
-                    <Sparkles className="size-4" />
-                    依目前方向產生 5 個候選題
+                    {activeSearchAction === 'topics' ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-4" />
+                    )}
+                    {activeSearchAction === 'topics'
+                      ? '正在重新拆解方向…'
+                      : '依目前方向產生 5 個不同選題'}
                   </Button>
                   <span className="text-xs text-muted-foreground">
-                    依你輸入的方向快速發想。
+                    會拆成迷思、生活場景、瓶頸、系統與最小行動五種角度。
                   </span>
                 </div>
               )}
