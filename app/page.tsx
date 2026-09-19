@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { makeTitles } from '@/lib/title-rules';
+import { makeThumbnailIdeas } from '@/lib/thumbnail-prompts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,55 +60,6 @@ const steps = [
   { label: '社群宣傳', detail: 'Facebook＋Instagram 文案', icon: Share2 },
 ];
 
-const thumbIdeasByPillar = {
-  現金流管理: [
-    {
-      name: '薪水依賴',
-      text: '薪水停了呢？',
-      scene: '手機銀行餘額＋家庭帳單，人物沉著面對風險',
-      prompt:
-        'Cinematic Taiwanese middle-aged office worker at a dining table, phone banking balance and household bills, calm but concerned expression, black white and gold palette, warm realistic light, YouTube thumbnail, 16:9, no text, no letters, no logo',
-    },
-    {
-      name: '目標數字',
-      text: '非工資 2 倍',
-      scene: '非工資收入與總支出形成清楚的 2× 對比',
-      prompt:
-        'Realistic household cashflow concept, two streams of income balanced against one stack of expenses, elegant black white and gold palette, warm family atmosphere, strong visual contrast, YouTube thumbnail, 16:9, no text, no letters, no logo',
-    },
-    {
-      name: '安全天數',
-      text: '還能撐幾天？',
-      scene: '家庭月曆、必要支出與可動用現金形成倒數感',
-      prompt:
-        'Realistic family calendar beside essential bills and limited emergency cash, visual countdown tension, premium black white and gold palette, warm cinematic lighting, YouTube thumbnail, 16:9, no text, no letters, no logo',
-    },
-  ],
-  AI資產建立: [
-    {
-      name: '資產判斷',
-      text: '副業還是打工？',
-      scene: '左側持續投入工時，右側是可累積的數位資產',
-      prompt:
-        'Split scene, overworked middle-aged office worker trading time on the left, reusable digital product generating value on the right, realistic Taiwanese setting, black white and gold palette, YouTube thumbnail, 16:9, no text, no letters, no logo',
-    },
-    {
-      name: '工具迷思',
-      text: '別只學 AI',
-      scene: '模糊的工具圖示退到背景，清楚收入數字成為主角',
-      prompt:
-        'Middle-aged creator ignoring a wall of blurred AI app icons and focusing on a real customer payment notification, premium black white and gold, warm realistic lighting, YouTube thumbnail, 16:9, no text, no letters, no logo',
-    },
-    {
-      name: '收入驗證',
-      text: '真的有人買？',
-      scene: '普通上班族查看第一筆數位產品成交紀錄',
-      prompt:
-        'Ordinary Taiwanese office worker seeing the first digital product sale on a laptop, authentic surprised expression, home desk at night, black white and gold palette, cinematic realism, YouTube thumbnail, 16:9, no text, no letters, no logo',
-    },
-  ],
-};
-
 const pillars = [
   {
     value: '現金流管理',
@@ -160,6 +112,7 @@ type SavedState = {
   selectedThumbProvider: ThumbnailProvider;
   thumbnailJobs: ThumbnailJob[];
   googleThumbnailJobs: ThumbnailJob[];
+  thumbnailVariations: Record<ThumbnailProvider, number>;
   scriptJobId: string;
   script: string;
   description: string;
@@ -191,6 +144,7 @@ const initialState: SavedState = {
   selectedThumbProvider: 'openai',
   thumbnailJobs: [],
   googleThumbnailJobs: [],
+  thumbnailVariations: { openai: 0, google: 0 },
   scriptJobId: '',
   script: '',
   description: '',
@@ -293,9 +247,6 @@ export default function Home() {
     () => makeTitles(state.selectedTopic, state.pillar),
     [state.selectedTopic, state.pillar],
   );
-  const thumbIdeas =
-    thumbIdeasByPillar[state.pillar as keyof typeof thumbIdeasByPillar] ||
-    thumbIdeasByPillar.現金流管理;
   const thumbnailProviders: Array<{
     id: ThumbnailProvider;
     name: string;
@@ -429,6 +380,7 @@ export default function Home() {
       selectedTitle: '',
       thumbnailJobs: [],
       googleThumbnailJobs: [],
+      thumbnailVariations: { openai: 0, google: 0 },
       scriptJobId: '',
       script: '',
       description: '',
@@ -475,6 +427,7 @@ export default function Home() {
       selectedTitle: '',
       thumbnailJobs: [],
       googleThumbnailJobs: [],
+      thumbnailVariations: { openai: 0, google: 0 },
       scriptJobId: '',
       script: '',
       description: '',
@@ -502,6 +455,7 @@ export default function Home() {
       selectedTitle: title,
       thumbnailJobs: [],
       googleThumbnailJobs: [],
+      thumbnailVariations: { openai: 0, google: 0 },
       scriptJobId: '',
       script: '',
       description: '',
@@ -548,6 +502,7 @@ export default function Home() {
           selectedTitle: '',
           thumbnailJobs: [],
           googleThumbnailJobs: [],
+          thumbnailVariations: { openai: 0, google: 0 },
           scriptJobId: '',
           script: '',
           description: '',
@@ -609,6 +564,7 @@ export default function Home() {
           selectedTitle: '',
           thumbnailJobs: [],
           googleThumbnailJobs: [],
+          thumbnailVariations: { openai: 0, google: 0 },
           scriptJobId: '',
           script: '',
           description: '',
@@ -727,6 +683,29 @@ export default function Home() {
     window.sessionStorage.setItem('studio-access-code', accessCode.trim());
     try {
       const code = accessCode.trim();
+      const currentVariations = state.thumbnailVariations || {
+        openai: 0,
+        google: 0,
+      };
+      const shouldRotate =
+        forceNew ||
+        (provider === 'google' && googleThumbnailImages.some(Boolean));
+      const variationRound =
+        currentVariations[provider] + (shouldRotate ? 1 : 0);
+      const thumbIdeas = makeThumbnailIdeas(
+        state.selectedTopic,
+        state.selectedTitle,
+        state.pillar,
+        variationRound,
+      );
+      if (shouldRotate) {
+        update({
+          thumbnailVariations: {
+            ...currentVariations,
+            [provider]: variationRound,
+          },
+        });
+      }
 
       if (provider === 'google') {
         let images = ['', '', ''];
@@ -1097,6 +1076,7 @@ export default function Home() {
         selectedTitle: '',
         thumbnailJobs: [],
         googleThumbnailJobs: [],
+        thumbnailVariations: { openai: 0, google: 0 },
         scriptJobId: '',
         script: '',
         description: '',
@@ -1144,6 +1124,7 @@ export default function Home() {
         selectedTitle: '',
         thumbnailJobs: [],
         googleThumbnailJobs: [],
+        thumbnailVariations: { openai: 0, google: 0 },
         scriptJobId: '',
         script: '',
         description: '',
@@ -1641,6 +1622,12 @@ export default function Home() {
                       const completedCount =
                         provider.images.filter(Boolean).length;
                       const isGenerating = generatingProvider === provider.id;
+                      const thumbIdeas = makeThumbnailIdeas(
+                        state.selectedTopic,
+                        state.selectedTitle,
+                        state.pillar,
+                        state.thumbnailVariations?.[provider.id] || 0,
+                      );
                       return (
                         <section
                           key={provider.id}
@@ -1668,11 +1655,11 @@ export default function Home() {
                           </div>
                           <div className="mt-5 rounded-2xl border border-[#d4af64]/30 bg-[#faf8f1] p-4">
                             <p className="text-sm font-semibold">
-                              依相同主題分別生成：情緒特寫、生活場景、象徵對比。
+                              依本集主題與標題動態生成：情緒衝突、生活情境、象徵對比。
                             </p>
                             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                              每次重新生成會使用 {provider.name} API
-                              額度；圖片不放任何可見文字、數字或標誌。
+                              重新生成會輪替鏡位、光線與畫面配置，並使用{' '}
+                              {provider.name} API 額度；圖片不放任何可見文字、數字或標誌。
                             </p>
                             <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
                               <Input
@@ -1694,8 +1681,7 @@ export default function Home() {
                                 onClick={() =>
                                   void generateThumbnails(
                                     provider.id,
-                                    completedCount > 0 &&
-                                      completedCount === provider.jobs.length,
+                                    completedCount > 0,
                                   )
                                 }
                               >

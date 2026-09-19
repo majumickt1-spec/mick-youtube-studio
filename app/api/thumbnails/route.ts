@@ -112,21 +112,30 @@ function finalPrompt(
   compositionIndex: number,
 ) {
   const compositions = [
-    'Composition A: intimate emotional close-up, one clear person or object on the right, shallow depth of field, strong facial or object-level storytelling.',
-    'Composition B: wide environmental story, a recognizable Taiwanese home or work setting, layered foreground and background, one unmistakable focal point on the right.',
-    'Composition C: bold symbolic still life or visual contrast, minimal objects, dramatic scale difference, clean geometric arrangement and strong negative space.',
+    'Composition A: emotional conflict. Use one person only, with a topic-specific action and expression. Reserve clean negative space on the left or upper-left.',
+    'Composition B: lived-in situation. Show cause and consequence in a wider real environment; people must not pose. Reserve quiet negative space in the upper-left.',
+    'Composition C: symbolic contrast. No people, faces, hands, or bodies. Use only a few topic-specific everyday objects and reserve the left third as clean negative space.',
   ];
-  return `Create exactly one premium photorealistic YouTube thumbnail background for a Taiwanese personal-finance creator.
+  return `DELIVERABLE
+Create exactly one premium photorealistic 16:9 YouTube thumbnail background for a Taiwanese personal-finance creator. It must remain clear at phone size and leave usable negative space for a headline added later.
 
+EPISODE
 Video topic: ${topic}
 Working title: ${title}
 Content pillar: ${pillar}
-Visual concept: ${prompt}
-${compositions[compositionIndex] || compositions[0]}
 
-Art direction: black, white, and restrained gold palette; warm cinematic realism; trustworthy and emotionally clear; Taiwanese home or work context; strong subject separation; high contrast; simple composition that remains readable on a phone.
-Composition: 16:9 landscape. Keep generous clean negative space on the left for a headline that will be added later. Place the main subject or focal object mostly on the right. Do not draw a fake interface screenshot.
-Strict exclusions: absolutely no visible text, no Chinese characters, no English letters, no numbers, no logos, no visible watermark, no subtitles, no UI labels, no cartoon, no mascot, no generic stock-business-team scene.`;
+VISUAL DIRECTION
+${prompt}
+
+COMPOSITION
+${compositions[compositionIndex] || compositions[0]}
+Follow this assigned composition rather than repeating a desk portrait. Do not draw a fake interface screenshot.
+
+STYLE
+Premium photorealistic editorial photography. Black and white are the base; gold is only a small restrained accent, never glowing wealth imagery. Trustworthy, emotionally clear, Taiwanese everyday context, strong subject separation, and realistic materials. Do not default to an amber night scene.
+
+STRICT CONSTRAINTS
+Absolutely no visible text, Chinese characters, English letters, numbers, logos, watermarks, subtitles, UI labels, cartoons, mascots, generic stock-business-team scenes, gold bars, glowing golden cubes, or money rain.`;
 }
 
 function geminiImageFrom(interaction: GeminiInteraction) {
