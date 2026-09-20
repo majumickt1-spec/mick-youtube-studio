@@ -1827,7 +1827,7 @@ export default function Home() {
         <TabsContent value="2">
           <StageShell
             step="STEP 03"
-            eyebrow="11 段故事架構＋米克大叔 S1–S18 真實故事庫"
+            eyebrow="8 段張力架構＋米克大叔 S1–S18 真實故事庫"
             title="腳本創作與資訊欄文案。"
           >
             {!state.selectedTopic ? (
