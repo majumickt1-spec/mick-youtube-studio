@@ -3,6 +3,7 @@ export type ThumbnailIdea = {
   text: string;
   scene: string;
   prompt: string;
+  canvaPrompt: string;
 };
 
 const visualRounds = [
@@ -279,6 +280,8 @@ export function makeThumbnailIdeas(
   const headlines = makeThumbnailHeadlines(safeTitle);
 
   const sharedContext = `PRIMARY CREATIVE BRIEF — selected video title: "${safeTitle}". Design the entire image from the promise, conflict, subject, and stakes expressed by this selected title. Every visible action, location, and prop must have a direct reason traceable to the selected title. Secondary context only: the broader topic is "${safeTopic}" and the content pillar is "${pillar}". Do not substitute a generic image about the broader topic, personal finance, AI, or content creation. Do not reuse a generic creator-at-a-laptop scene.`;
+  const canvaBase = `Create a premium photorealistic 16:9 YouTube thumbnail background inspired by the selected Chinese video title "${safeTitle}". The visual must express that title's specific conflict and stakes, using realistic Taiwanese everyday details. Black and white visual base, restrained warm gold accents, strong subject separation, clean negative space for a headline added later, immediately readable at phone size.`;
+  const canvaConstraints = `No visible text, Chinese characters, English letters, numbers, logos, watermarks, subtitles, UI labels, cartoons, mascots, generic business stock-photo poses, gold bars, glowing cubes, or money rain. Do not render the suggested headline inside the image.`;
 
   return [
     {
@@ -286,18 +289,21 @@ export function makeThumbnailIdeas(
       text: headlines[0],
       scene: `人物近景：呈現「${safeTitle}」帶來的單一明確情緒與動作，不以坐在電腦桌前作為預設。`,
       prompt: `Direction A — emotional conflict. ${sharedContext} Show exactly one believable Taiwanese adult aged 35–55 in a candid ${round.cameraA}. Give the person one unmistakable emotion and one physical action caused by the topic. Choose a location and props that specifically explain this episode, not a generic office or studio. Use ${round.mood}. Natural skin texture, realistic posture, no glamour pose, no looking at camera, no glowing cubes, no piles of gold or cash.`,
+      canvaPrompt: `${canvaBase} Emotional-conflict composition: show exactly one believable Taiwanese adult aged 35–55 in a candid ${round.cameraA}, with one unmistakable emotion and one physical action caused by the selected title. Choose a title-specific location and ordinary props, not a generic office or a person posing at a laptop. Use ${round.mood}, natural skin texture, and realistic posture. ${canvaConstraints}`,
     },
     {
       name: '生活情境',
       text: headlines[1],
       scene: `真實情境：用家庭或工作現場呈現「${safeTopic}」的原因與後果，人物不是擺拍主角。`,
       prompt: `Direction B — lived-in situation. ${sharedContext} Build a ${round.cameraB} inside a recognizable Taiwanese home, commute, storefront, or workplace selected for this exact topic. Show a clear cause-and-effect story through natural human activity and topic-specific objects. Use a different location, pose, camera distance, and object set from Direction A. The people are part of the situation, not posing for a portrait. Use ${round.mood}. Avoid a lone man staring at a laptop, fake app screens, glowing UI walls, gold bars, or luxury imagery.`,
+      canvaPrompt: `${canvaBase} Lived-in-situation composition: use a ${round.cameraB} in a recognizable Taiwanese home, commute, storefront, or workplace chosen for the selected title. Show a clear cause-and-effect story through natural activity and title-specific ordinary objects. People are part of the situation, never posing for a portrait; avoid a lone man staring at a laptop. Use ${round.mood}. ${canvaConstraints}`,
     },
     {
       name: '象徵對比',
       text: headlines[2],
       scene: `無人物象徵：只用與「${safeTitle}」直接相關的日常物件，形成一眼看懂的矛盾或前後對比。`,
       prompt: `Direction C — symbolic contrast. ${sharedContext} Create a people-free ${round.cameraC}. Use only two to four ordinary, topic-specific objects to form one immediately readable visual contradiction, imbalance, before-and-after relationship, or trade-off. No people, faces, hands, bodies, desks with laptops, coins, money rain, gold bars, glowing cubes, generic upward charts, or abstract AI icons. Use ${round.mood}. Favor a strong silhouette, tactile real materials, and a simple visual metaphor that remains clear at phone size.`,
+      canvaPrompt: `${canvaBase} People-free symbolic-contrast composition: create a ${round.cameraC} using only two to four ordinary objects directly related to the selected title. Form one immediately readable contradiction, imbalance, before-and-after relationship, or trade-off with tactile real materials and a strong silhouette. No people, faces, hands, bodies, laptops, coins, charts, or abstract AI icons. Use ${round.mood}. ${canvaConstraints}`,
     },
   ];
 }

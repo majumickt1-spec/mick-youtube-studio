@@ -1777,6 +1777,29 @@ export default function Home() {
                                       構圖 {String.fromCharCode(65 + index)}：
                                       {idea.scene}
                                     </p>
+                                    <details className="mt-3 rounded-xl border border-[#d4af64]/25 bg-[#faf8f1] p-3">
+                                      <summary className="cursor-pointer text-xs font-bold text-[#6f541f]">
+                                        Canva 英文提示詞
+                                      </summary>
+                                      <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
+                                        {idea.canvaPrompt}
+                                      </p>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        className="mt-3"
+                                        onClick={() =>
+                                          copyText(
+                                            idea.canvaPrompt,
+                                            `第 ${index + 1} 組 Canva 提示詞已複製。`,
+                                          )
+                                        }
+                                      >
+                                        <Copy className="size-3.5" />
+                                        複製
+                                      </Button>
+                                    </details>
                                   </div>
                                 </div>
                               );
