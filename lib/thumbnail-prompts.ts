@@ -27,6 +27,154 @@ const visualRounds = [
   },
 ];
 
+type VisualSeed = {
+  emotional: { scene: string; prompt: string };
+  situation: { scene: string; prompt: string };
+  symbolic: { scene: string; prompt: string };
+};
+
+function makeVisualSeed(topic: string, title: string): VisualSeed {
+  const brief = `${title} ${topic}`;
+
+  if (/觀看|流量|訂閱|影片.*收入|收入.*跟/u.test(brief)) {
+    return {
+      emotional: {
+        scene: '台灣家庭餐桌：一手看手機上的觀看成長趨勢，另一手打開幾乎空的錢包，人物低頭看錢包。',
+        prompt:
+          'At a modest Taiwanese apartment dining table, one worried Taiwanese man aged 40–50 holds a smartphone showing a simple unlabeled upward audience trend in one hand and opens a nearly empty dark wallet with the other. He looks down at the wallet, not at the camera. A plain ceramic mug is the only secondary prop.',
+      },
+      situation: {
+        scene: '台灣住家工作桌：完成的影片企劃與拍攝器材很多，但旁邊的生活帳單與空零錢罐形成落差。',
+        prompt:
+          'Inside a lived-in Taiwanese apartment, a creator sits at a dining table after finishing several videos. Blank storyboard cards and a small camera fill one side of the table, while household bills and a nearly empty glass savings jar sit on the other side. The person quietly compares the two sides instead of posing.',
+      },
+      symbolic: {
+        scene: '無人物俯拍：大量完成的空白影片卡片堆成高塔，旁邊卻是扁平的空錢包，形成一眼看懂的反差。',
+        prompt:
+          'A people-free overhead still life: a tall stack of blank video-frame cards and a small camera-memory-card case on one side, contrasted with a flattened nearly empty dark wallet on the other. The height difference must be immediately obvious.',
+      },
+    };
+  }
+
+  if (/裁員|失業|安全天數|撐不了|緩衝/u.test(brief)) {
+    return {
+      emotional: {
+        scene: '台灣家庭餐桌：中年上班族握著素面資遣信封，另一手數著只剩幾張的生活費，神情震驚。',
+        prompt:
+          'At a Taiwanese family dining table, one stunned Taiwanese adult aged 40–55 grips a plain unmarked termination envelope while counting only a few remaining household-expense notes with the other hand. A wall calendar with blank squares and ordinary utility envelopes sit nearby.',
+      },
+      situation: {
+        scene: '住家晚餐桌：家庭帳單排成一列，緊急預備金罐接近見底，人物正在計算還能撐多久。',
+        prompt:
+          'In a modest Taiwanese home dining area, one adult sorts a row of household expense envelopes beside a nearly empty emergency savings jar and a blank monthly calendar. The scene clearly shows a family calculating how little financial runway remains.',
+      },
+      symbolic: {
+        scene: '無人物俯拍：很短的一排日曆方塊即將撞上厚厚的家庭帳單，旁邊只剩少量零錢。',
+        prompt:
+          'A people-free overhead still life: a very short row of blank calendar blocks leads directly into a thick stack of household expense envelopes, with only a few loose coins remaining beside them. The short runway is unmistakable.',
+      },
+    };
+  }
+
+  if (/信貸|負債|貸款|還款/u.test(brief)) {
+    return {
+      emotional: {
+        scene: '家庭餐桌：人物把一疊還款信封推開，同時握住剛被釋放出來的生活費信封，表情從壓力轉為鬆一口氣。',
+        prompt:
+          'At a Taiwanese family dining table, one adult pushes away a thick stack of plain loan-payment envelopes while holding one newly freed monthly household envelope close. Their expression shows cautious relief, with a simple calculator nearby.',
+      },
+      situation: {
+        scene: '家庭記帳現場：左側是厚重貸款資料，右側是重新分配到生活與儲蓄的信封，呈現現金流被釋放。',
+        prompt:
+          'A lived-in Taiwanese household budgeting scene: a thick bundle of loan documents and payment envelopes sits on the left, while two modest household and savings envelopes are being reorganized on the right. One adult naturally moves the envelopes between the two sides.',
+      },
+      symbolic: {
+        scene: '無人物靜物：厚重的貸款信封壓住細小現金流，剪斷一節束帶後，一個生活費信封被釋放出來。',
+        prompt:
+          'A people-free still life: a thick bundle of plain loan envelopes weighs down a narrow paper path, while one loosened strap releases a single household-expense envelope. Use real paper and tactile materials, not fantasy symbols.',
+      },
+    };
+  }
+
+  if (/房貸|買房/u.test(brief)) {
+    return {
+      emotional: {
+        scene: '台灣住家餐桌：人物拿著家門鑰匙，卻盯著房貸信封與幾乎空的錢包，呈現有房卻不安心。',
+        prompt:
+          'At a Taiwanese apartment dining table, one concerned adult holds a home key while looking down at a thick plain mortgage envelope beside a nearly empty wallet. The apartment interior feels real and modest, not luxurious.',
+      },
+      situation: {
+        scene: '新家尚未整理的餐桌：鑰匙與紙箱代表擁有房子，旁邊密集帳單與稀少生活費呈現壓力。',
+        prompt:
+          'Inside a newly occupied Taiwanese apartment, moving boxes and a home key show ownership, while a dining table crowded with mortgage and utility envelopes leaves only a thin household cash envelope. One adult sorts the expenses naturally.',
+      },
+      symbolic: {
+        scene: '無人物俯拍：房屋鑰匙壓在厚房貸信封上，另一側只剩薄薄的生活費信封。',
+        prompt:
+          'A people-free overhead still life: a home key rests on a thick plain mortgage envelope, sharply contrasted with one very thin household-expense envelope on the other side. Make the imbalance immediately readable.',
+      },
+    };
+  }
+
+  if (/保險|保費|保單/u.test(brief)) {
+    return {
+      emotional: {
+        scene: '家庭餐桌：人物被多份保單資料包圍，手上卻只剩薄薄的生活費信封，表情困惑。',
+        prompt:
+          'At a Taiwanese family dining table, one confused adult is surrounded by several plain insurance-policy folders while holding one visibly thin household-expense envelope. The person looks at the thin envelope, not at the camera.',
+      },
+      situation: {
+        scene: '每月家庭記帳：一側堆滿保單與保費信封，另一側買菜與生活費信封明顯不足。',
+        prompt:
+          'A lived-in Taiwanese household budgeting scene: policy folders and premium-payment envelopes crowd one side of the table, while grocery and daily-expense envelopes on the other side are visibly sparse. One adult is trying to rebalance them.',
+      },
+      symbolic: {
+        scene: '無人物靜物：厚厚保單資料壓住一個極薄的生活費信封，呈現保障很多但現金不足。',
+        prompt:
+          'A people-free still life: a heavy stack of plain insurance-policy folders physically presses down on one very thin household-expense envelope. Real paper, restrained composition, and an obvious weight imbalance.',
+      },
+    };
+  }
+
+  if (/AI|副業|工具|工作流|產品|付錢|加班|工時/u.test(brief)) {
+    return {
+      emotional: {
+        scene: '下班後的台灣家庭餐桌：人物一手按著疲憊的額頭，另一手整理重複工作紙卡，牆上時鐘顯示時間已晚。',
+        prompt:
+          'At a Taiwanese apartment dining table after work, one tired adult aged 35–55 presses one hand to their forehead while the other hand sorts a repetitive chain of blank task cards. A wall clock and tangled charging cables show that the work has stretched late into the evening.',
+      },
+      situation: {
+        scene: '住家餐桌上的副業現場：左側是散亂、重複的一次性工作，右側是一套整理完成、可重複使用的流程盒。',
+        prompt:
+          'A wider Taiwanese home side-business scene: scattered duplicate task cards, cables, and unfinished one-off work cover the left side of a dining table, while one compact organized workflow box with neatly ordered blank cards sits on the right. The adult is moving one task into the reusable system.',
+      },
+      symbolic: {
+        scene: '無人物俯拍：大量散亂的一次性任務卡消耗沙漏，旁邊只有一套整齊可重複使用的流程卡。',
+        prompt:
+          'A people-free overhead still life: many scattered duplicate task cards surround a nearly empty hourglass, contrasted with one compact stack of neatly ordered reusable process cards. The difference between repeated labor and a reusable system must be obvious.',
+      },
+    };
+  }
+
+  return {
+    emotional: {
+      scene: '台灣家庭餐桌：人物對照一疊生活帳單與幾乎空的錢包，正在找出錢留不下來的原因。',
+      prompt:
+        'At a modest Taiwanese apartment dining table, one concerned adult aged 35–55 compares a stack of plain household expense envelopes with a nearly empty wallet. They sort one envelope by hand and look at the shortfall, not at the camera.',
+    },
+    situation: {
+      scene: '家庭記帳現場：收入信封在桌上，但房貸、卡費與日常開銷從不同方向把錢分走。',
+      prompt:
+        'A lived-in Taiwanese household budgeting scene: one monthly income envelope sits at the center while mortgage, card-payment, grocery, and utility envelopes pull the available household money in different directions. One adult naturally traces where the money goes.',
+    },
+    symbolic: {
+      scene: '無人物俯拍：一個收入信封連向多個支出信封，中間只剩極細的現金流，形成明確失衡。',
+      prompt:
+        'A people-free overhead still life: one household income envelope feeds into several expense envelopes through narrow paper strips, leaving only one very thin remaining strip at the end. Use ordinary real materials and a clear imbalance.',
+    },
+  };
+}
+
 function cleanHeadlinePart(value: string) {
   return value
     .replace(/^(?:真正|其實|問題可能|問題|別急著|一定要|我才算出|我才|算出|你家)/u, '')
@@ -278,32 +426,32 @@ export function makeThumbnailIdeas(
   const safeTopic = topic.trim() || '家庭現金流問題';
   const safeTitle = title.trim() || safeTopic;
   const headlines = makeThumbnailHeadlines(safeTitle);
+  const visualSeed = makeVisualSeed(safeTopic, safeTitle);
 
-  const sharedContext = `PRIMARY CREATIVE BRIEF — selected video title: "${safeTitle}". Design the entire image from the promise, conflict, subject, and stakes expressed by this selected title. Every visible action, location, and prop must have a direct reason traceable to the selected title. Secondary context only: the broader topic is "${safeTopic}" and the content pillar is "${pillar}". Do not substitute a generic image about the broader topic, personal finance, AI, or content creation. Do not reuse a generic creator-at-a-laptop scene.`;
-  const canvaBase = `Create a premium photorealistic 16:9 YouTube thumbnail background inspired by the selected Chinese video title "${safeTitle}". The visual must express that title's specific conflict and stakes, using realistic Taiwanese everyday details. Black and white visual base, restrained warm gold accents, strong subject separation, clean negative space for a headline added later, immediately readable at phone size.`;
-  const canvaConstraints = `No visible text, Chinese characters, English letters, numbers, logos, watermarks, subtitles, UI labels, cartoons, mascots, generic business stock-photo poses, gold bars, glowing cubes, or money rain. Do not render the suggested headline inside the image.`;
+  const sharedStyle = `Premium photorealistic editorial photography with realistic Taiwanese everyday details. Black, white, and neutral tones form the visual base, with only one restrained warm-gold accent. Leave the left third clean for a headline added later. Strong subject separation and a simple silhouette that remains readable at phone size.`;
+  const sharedConstraints = `No visible text, readable screen interface, numbers, logos, watermarks, cartoons, office stock-photo pose, gold bars, glowing cubes, or money rain.`;
 
   return [
     {
       name: '情緒衝突',
       text: headlines[0],
-      scene: `人物近景：呈現「${safeTitle}」帶來的單一明確情緒與動作，不以坐在電腦桌前作為預設。`,
-      prompt: `Direction A — emotional conflict. ${sharedContext} Show exactly one believable Taiwanese adult aged 35–55 in a candid ${round.cameraA}. Give the person one unmistakable emotion and one physical action caused by the topic. Choose a location and props that specifically explain this episode, not a generic office or studio. Use ${round.mood}. Natural skin texture, realistic posture, no glamour pose, no looking at camera, no glowing cubes, no piles of gold or cash.`,
-      canvaPrompt: `${canvaBase} Emotional-conflict composition: show exactly one believable Taiwanese adult aged 35–55 in a candid ${round.cameraA}, with one unmistakable emotion and one physical action caused by the selected title. Choose a title-specific location and ordinary props, not a generic office or a person posing at a laptop. Use ${round.mood}, natural skin texture, and realistic posture. ${canvaConstraints}`,
+      scene: `人物情緒衝突：${visualSeed.emotional.scene}`,
+      prompt: `Direction A — emotional conflict. REQUIRED LITERAL SCENE: ${visualSeed.emotional.prompt} Use a candid ${round.cameraA} and ${round.mood}. ${sharedStyle} Natural skin texture and realistic posture. ${sharedConstraints}`,
+      canvaPrompt: `Create one photorealistic 16:9 YouTube thumbnail background. REQUIRED SCENE: ${visualSeed.emotional.prompt} COMPOSITION: candid ${round.cameraA}; keep the subject on the right half and leave the left third quiet and uncluttered. LIGHTING: ${round.mood}. STYLE: ${sharedStyle} CONSTRAINTS: ${sharedConstraints} Do not add the headline inside the image.`,
     },
     {
       name: '生活情境',
       text: headlines[1],
-      scene: `真實情境：用家庭或工作現場呈現「${safeTopic}」的原因與後果，人物不是擺拍主角。`,
-      prompt: `Direction B — lived-in situation. ${sharedContext} Build a ${round.cameraB} inside a recognizable Taiwanese home, commute, storefront, or workplace selected for this exact topic. Show a clear cause-and-effect story through natural human activity and topic-specific objects. Use a different location, pose, camera distance, and object set from Direction A. The people are part of the situation, not posing for a portrait. Use ${round.mood}. Avoid a lone man staring at a laptop, fake app screens, glowing UI walls, gold bars, or luxury imagery.`,
-      canvaPrompt: `${canvaBase} Lived-in-situation composition: use a ${round.cameraB} in a recognizable Taiwanese home, commute, storefront, or workplace chosen for the selected title. Show a clear cause-and-effect story through natural activity and title-specific ordinary objects. People are part of the situation, never posing for a portrait; avoid a lone man staring at a laptop. Use ${round.mood}. ${canvaConstraints}`,
+      scene: `生活因果情境：${visualSeed.situation.scene}`,
+      prompt: `Direction B — lived-in situation. REQUIRED LITERAL SCENE: ${visualSeed.situation.prompt} Use a ${round.cameraB} and ${round.mood}. ${sharedStyle} The person is part of the activity, never posing. ${sharedConstraints}`,
+      canvaPrompt: `Create one photorealistic 16:9 YouTube thumbnail background. REQUIRED SCENE: ${visualSeed.situation.prompt} COMPOSITION: ${round.cameraB}; keep the main activity on the right two-thirds and leave quiet negative space in the upper-left. LIGHTING: ${round.mood}. STYLE: ${sharedStyle} CONSTRAINTS: ${sharedConstraints} Do not add the headline inside the image.`,
     },
     {
       name: '象徵對比',
       text: headlines[2],
-      scene: `無人物象徵：只用與「${safeTitle}」直接相關的日常物件，形成一眼看懂的矛盾或前後對比。`,
-      prompt: `Direction C — symbolic contrast. ${sharedContext} Create a people-free ${round.cameraC}. Use only two to four ordinary, topic-specific objects to form one immediately readable visual contradiction, imbalance, before-and-after relationship, or trade-off. No people, faces, hands, bodies, desks with laptops, coins, money rain, gold bars, glowing cubes, generic upward charts, or abstract AI icons. Use ${round.mood}. Favor a strong silhouette, tactile real materials, and a simple visual metaphor that remains clear at phone size.`,
-      canvaPrompt: `${canvaBase} People-free symbolic-contrast composition: create a ${round.cameraC} using only two to four ordinary objects directly related to the selected title. Form one immediately readable contradiction, imbalance, before-and-after relationship, or trade-off with tactile real materials and a strong silhouette. No people, faces, hands, bodies, laptops, coins, charts, or abstract AI icons. Use ${round.mood}. ${canvaConstraints}`,
+      scene: `物件象徵對比：${visualSeed.symbolic.scene}`,
+      prompt: `Direction C — symbolic contrast. REQUIRED LITERAL SCENE: ${visualSeed.symbolic.prompt} Create a people-free ${round.cameraC} using ${round.mood}. ${sharedStyle} Favor tactile real materials. ${sharedConstraints} No people, faces, hands, or bodies.`,
+      canvaPrompt: `Create one photorealistic 16:9 YouTube thumbnail background. REQUIRED SCENE: ${visualSeed.symbolic.prompt} COMPOSITION: people-free ${round.cameraC}; place the visual contrast on the right two-thirds and leave the left third clean. LIGHTING: ${round.mood}. STYLE: ${sharedStyle} CONSTRAINTS: ${sharedConstraints} No people, faces, hands, or bodies. Do not add the headline inside the image.`,
     },
   ];
 }
