@@ -438,6 +438,85 @@ export function makeThumbnailHeadlines(title: string) {
   );
 }
 
+type StrategyHeadlinePairs = [string, string, string];
+
+function makeStrategyHeadlinePairs(
+  topic: string,
+  title: string,
+  headlines: string[],
+): StrategyHeadlinePairs {
+  const brief = `${title} ${topic}`;
+  let pairs: StrategyHeadlinePairs;
+
+  if (/觀看|流量|訂閱|影片.*收入|收入.*跟/u.test(brief)) {
+    pairs = [
+      '觀看一直漲／收入為何沒跟上？',
+      '影片一支支完成／月底收入仍沒變',
+      '只有觀看數／變成可累積收入',
+    ];
+  } else if (/影片|內容|拍片|創作/u.test(brief)) {
+    pairs = [
+      '一直做新影片／為何什麼都沒留下？',
+      '拍完就歸零／下週又從頭開始',
+      '一支影片做完／變成一週內容',
+    ];
+  } else if (/裁員|失業|安全天數|撐不了|緩衝/u.test(brief)) {
+    pairs = [
+      '工作明明還在／家裡卻快撐不住',
+      '帳單照樣來／現金快見底',
+      '只能撐幾天／建立安全緩衝',
+    ];
+  } else if (/信貸|負債|貸款|還款/u.test(brief)) {
+    pairs = [
+      '薪水明明沒變／錢為何能多留下？',
+      '每月先還債／生活費一直被吃掉',
+      '現金流被壓住／每月多留一筆',
+    ];
+  } else if (/房貸|買房/u.test(brief)) {
+    pairs = [
+      '房貸明明繳得起／為何還是不安心？',
+      '住進自己的家／每月卻幾乎沒剩',
+      '只看房貸利率／看懂每月餘裕',
+    ];
+  } else if (/保險|保費|保單/u.test(brief)) {
+    pairs = [
+      '保險明明買很多／現金為何不夠用？',
+      '保費一直繳／生活費越來越薄',
+      '保單越買越多／現金流變清楚',
+    ];
+  } else if (/AI|Agent|Codex|副業|工具|工作流|產品|付錢|加班|工時/iu.test(brief)) {
+    pairs = [
+      '工具學得越多／為何工作反而更多？',
+      '下班還在重做／每天重新交代一次',
+      '每次都要重來／Agent開始接手',
+    ];
+  } else {
+    pairs = [
+      `${headlines[0]}／錢為何還是留不住？`,
+      '薪水一進帳／月底又快歸零',
+      '錢不知道去哪／每月清楚有餘',
+    ];
+  }
+
+  const fallbacks: StrategyHeadlinePairs = [
+    `${headlines[0]}／你也卡在這裡嗎？`,
+    `每天都在發生／${headlines[1]}`,
+    `改變前很混亂／改變後更清楚`,
+  ];
+  const used = new Set<string>();
+
+  return pairs.map((pair, index) => {
+    const normalized = pair.replace(/[\s／，,。！？?!：:]/g, '');
+    if (!used.has(normalized)) {
+      used.add(normalized);
+      return pair;
+    }
+    const fallback = fallbacks[index];
+    used.add(fallback.replace(/[\s／，,。！？?!：:]/g, ''));
+    return fallback;
+  }) as StrategyHeadlinePairs;
+}
+
 export function makeThumbnailIdeas(
   topic: string,
   title: string,
@@ -455,11 +534,7 @@ export function makeThumbnailIdeas(
   const symbolicLayout = `LEFT/RIGHT BEFORE-AFTER SYMBOLIC COMPOSITION: split the frame into two clearly different halves using the same referenced creator on both sides. Preserve identical face, glasses, hair, clothing, and proportions. LEFT is BEFORE: darker, cluttered, pressured, inefficient, or stuck, supported by topic-specific problem objects. RIGHT is AFTER: clearer, organized, calmer, and visibly improved, supported by corresponding solution objects. Use a strong center transition and reserve the upper middle for the first headline plus a broad warm-gold diagonal ribbon across the lower third for the second headline.`;
   const sharedStyle = `Premium high-contrast semi-realistic hand-painted editorial illustration, not photography. Preserve believable adult anatomy whenever a person is present, while adding visible fine pencil and charcoal cross-hatching, textured digital brushwork, softly simplified forms, and a refined illustrated finish. Use a near-black base, ivory-white highlights, warm metallic gold rim light, and crisp focal separation. Mature, thoughtful, and trustworthy rather than cute or flashy. Keep two diagonal headline zones and a small restrained warm-gold dot-grid accent, but make the three compositions unmistakably different at thumbnail size.`;
   const sharedConstraints = `Generate the background and visual subjects only. No photorealistic camera look, photographic skin pores, flat vector art, anime, manga, chibi proportions, children's-book cartoon style, visible text, letters, Chinese characters, numbers, logos, watermarks, subtitles, UI labels, extra badges, money, coins, gold bars, rockets, luxury cars, profit charts, holographic interfaces, or generic office stock-photo poses. A single polished black-and-gold 3D AI-agent character is allowed only when the selected topic is directly about AI or agents; do not add unrelated mascots.`;
-  const twoLineHeadlines = [
-    `${headlines[0]}／${headlines[1]}`,
-    `${headlines[1]}／${headlines[2]}`,
-    `${headlines[0]}／${headlines[2]}`,
-  ];
+  const twoLineHeadlines = makeStrategyHeadlinePairs(safeTopic, safeTitle, headlines);
 
   return [
     {
