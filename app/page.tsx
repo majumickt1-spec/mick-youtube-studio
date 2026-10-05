@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { makeTitles } from '@/lib/title-rules';
+import { makeTitles, type TitleOption } from '@/lib/title-rules';
 import { makeThumbnailIdeas } from '@/lib/thumbnail-prompts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -107,6 +107,8 @@ type SavedState = {
   candidates: string[];
   candidateDetails: TopicCandidate[];
   selectedTopic: string;
+  titleOptions: TitleOption[];
+  titleSourceTopic: string;
   selectedTitle: string;
   selectedThumb: number;
   selectedThumbProvider: ThumbnailProvider;
@@ -139,6 +141,8 @@ const initialState: SavedState = {
   candidates: [],
   candidateDetails: [],
   selectedTopic: '',
+  titleOptions: [],
+  titleSourceTopic: '',
   selectedTitle: '',
   selectedThumb: 0,
   selectedThumbProvider: 'openai',
@@ -178,6 +182,8 @@ export default function Home() {
   >('');
   const [searchPhase, setSearchPhase] = useState('');
   const [searchError, setSearchError] = useState('');
+  const [isGeneratingTitles, setIsGeneratingTitles] = useState(false);
+  const [titleError, setTitleError] = useState('');
   const [thumbnailImages, setThumbnailImages] = useState<string[]>([
     '',
     '',
@@ -206,8 +212,17 @@ export default function Home() {
   const [socialStatus, setSocialStatus] = useState('');
   const [socialError, setSocialError] = useState('');
   const titles = useMemo(
-    () => makeTitles(state.selectedTopic, state.pillar),
-    [state.selectedTopic, state.pillar],
+    () =>
+      state.titleSourceTopic === state.selectedTopic &&
+      state.titleOptions?.length === 3
+        ? state.titleOptions
+        : makeTitles(state.selectedTopic, state.pillar),
+    [
+      state.selectedTopic,
+      state.pillar,
+      state.titleOptions,
+      state.titleSourceTopic,
+    ],
   );
   const thumbnailProviders: Array<{
     id: ThumbnailProvider;
@@ -339,6 +354,8 @@ export default function Home() {
       candidates: [],
       candidateDetails: [],
       selectedTopic: '',
+      titleOptions: [],
+      titleSourceTopic: '',
       selectedTitle: '',
       thumbnailJobs: [],
       googleThumbnailJobs: [],
@@ -364,6 +381,7 @@ export default function Home() {
     setSocialError('');
     setSearchPhase('');
     setSearchError('');
+    setTitleError('');
   }
   function go(next: number) {
     setStage(String(next));
@@ -377,6 +395,54 @@ export default function Home() {
   function copyText(text: string, message: string) {
     void navigator.clipboard.writeText(text).then(() => setNotice(message));
   }
+  async function generateTitleOptions(topic: string) {
+    setTitleError('');
+    if (!accessCode.trim()) {
+      setTitleError('請先輸入平台使用碼，才能依目前選題產生標題。');
+      return;
+    }
+    setIsGeneratingTitles(true);
+    window.sessionStorage.setItem('studio-access-code', accessCode.trim());
+    try {
+      const response = await fetch('/api/topic-radar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          phase: 'titleOptions',
+          accessCode: accessCode.trim(),
+          pillar: state.pillar,
+          topic,
+          keyword: state.keyword,
+          supplement: state.supplement,
+          references: state.sources,
+        }),
+      });
+      const data = (await response.json()) as {
+        options?: TitleOption[];
+        error?: string;
+      };
+      if (!response.ok || data.options?.length !== 3) {
+        throw new Error(data.error || '無法依目前選題產生 3 個標題');
+      }
+      setState((current) =>
+        current.selectedTopic === topic
+          ? {
+              ...current,
+              titleOptions: data.options || [],
+              titleSourceTopic: topic,
+              selectedTitle: '',
+            }
+          : current,
+      );
+    } catch (error) {
+      setTitleError(
+        `${error instanceof Error ? error.message : '標題生成暫時無法使用'}；目前先顯示本機備援標題。`,
+      );
+    } finally {
+      setIsGeneratingTitles(false);
+    }
+  }
+
   function selectTopic(topic: string) {
     setThumbnailImages(['', '', '']);
     setGoogleThumbnailImages(['', '', '']);
@@ -386,6 +452,8 @@ export default function Home() {
     setSocialError('');
     update({
       selectedTopic: topic,
+      titleOptions: [],
+      titleSourceTopic: '',
       selectedTitle: '',
       thumbnailJobs: [],
       googleThumbnailJobs: [],
@@ -401,6 +469,7 @@ export default function Home() {
       igVisual: '',
       igCopy: '',
     });
+    void generateTitleOptions(topic);
   }
 
   function selectTitle(title: string) {
@@ -1573,8 +1642,8 @@ export default function Home() {
         <TabsContent value="1">
           <StageShell
             step="STEP 02"
-            eyebrow="兩個模型各自產圖，中文字留到後續疊加"
-            title="GPT Image 2.5 與 Nano Banana Pro，各生成 3 組無字縮圖。"
+            eyebrow="固定黑金母版，中文字留到後續疊加"
+            title="GPT Image 2.5 與 Nano Banana Pro，各生成 3 組同品牌縮圖。"
           >
             {!state.selectedTopic ? (
               <Blocked
@@ -1590,10 +1659,35 @@ export default function Home() {
                       {state.selectedTopic}
                     </p>
                     <div className="mt-6 space-y-3">
-                      <p className="text-sm font-bold">選一個標題</p>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm font-bold">選一個標題</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isGeneratingTitles}
+                          onClick={() =>
+                            void generateTitleOptions(state.selectedTopic)
+                          }
+                        >
+                          {isGeneratingTitles ? (
+                            <LoaderCircle className="size-4 animate-spin" />
+                          ) : (
+                            <WandSparkles className="size-4" />
+                          )}
+                          {isGeneratingTitles
+                            ? '依目前選題產生中'
+                            : '依目前選題重新產生'}
+                        </Button>
+                      </div>
                       <p className="text-xs leading-5 text-muted-foreground">
-                        反常、金額、數字開頭；金額只採用與主題相關的已提供事實，沒有合適資料就不編造。
+                        標題會依照上方 Step 1 選定的完整主題重新產生；金額只採用與主題相關的已提供事實，沒有合適資料就不編造。
                       </p>
+                      {titleError && (
+                        <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
+                          {titleError}
+                        </p>
+                      )}
                       {titles.map(({ kind, title }) => (
                         <button
                           key={title}
@@ -1639,7 +1733,7 @@ export default function Home() {
                                 {provider.name}｜3 組縮圖
                               </p>
                               <p className="mt-1 text-xs text-muted-foreground">
-                                {provider.detail}｜無字、不同構圖
+                                {provider.detail}｜固定版型、無字、不同主題物件
                               </p>
                               <Badge className="mt-3 border-[#d4af64]/40 bg-[#d4af64]/10 text-[#795d24]">
                                 {thumbnailConnections[provider.id] === null
@@ -1655,11 +1749,11 @@ export default function Home() {
                           </div>
                           <div className="mt-5 rounded-2xl border border-[#d4af64]/30 bg-[#faf8f1] p-4">
                             <p className="text-sm font-semibold">
-                              完全依照你選定的影片標題，設計情緒衝突、生活情境、象徵對比三種縮圖。
+                              固定使用「左側本人＋筆電、右上主題物件、右側雙層斜向大字」黑金母版，再依標題變化三種主題物件。
                             </p>
                             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                              三組縮圖大字也會從所選標題的關鍵衝突提煉；重新生成會輪替鏡位、光線與畫面配置，並使用{' '}
-                              {provider.name} API 額度；圖片不放任何可見文字、數字或標誌。
+                              三組都保留金色斜帶與兩層標題空間；大字會從所選標題提煉。重新生成會輪替表情、光線與右上主題物件，並使用{' '}
+                              {provider.name} API 額度；圖片不直接生成文字、數字或標誌，避免亂碼。
                             </p>
                             <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
                               <Input
@@ -1760,7 +1854,7 @@ export default function Home() {
                                         className="text-left text-sm font-bold text-[#8b6c2d]"
                                       >
                                         {isSelected ? '✓ ' : ''}
-                                        {idea.name}｜大字：{idea.text}
+                                        {idea.name}｜雙層大字：{idea.text}
                                       </button>
                                       {provider.images[index] && (
                                         <a
@@ -1779,7 +1873,7 @@ export default function Home() {
                                     </p>
                                     <details className="mt-3 rounded-xl border border-[#d4af64]/25 bg-[#faf8f1] p-3">
                                       <summary className="cursor-pointer text-xs font-bold text-[#6f541f]">
-                                        Canva 英文提示詞
+                                        通用英文提示詞
                                       </summary>
                                       <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
                                         {idea.canvaPrompt}

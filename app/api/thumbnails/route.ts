@@ -112,9 +112,9 @@ function finalPrompt(
   compositionIndex: number,
 ) {
   const compositions = [
-    'Composition A: emotional conflict. Use one person only, with a topic-specific action and expression. Reserve clean negative space on the left or upper-left.',
-    'Composition B: lived-in situation. Show cause and consequence in a wider real environment; people must not pose. Reserve quiet negative space in the upper-left.',
-    'Composition C: symbolic contrast. No people, faces, hands, or bodies. Use only a few topic-specific everyday objects and reserve the left third as clean negative space.',
+    'Variation A: emotional conflict. Keep the fixed master layout. Use a thoughtful or concerned presenter portrait on the left and one compact literal conflict object in the upper-right.',
+    'Variation B: lived-in cause and consequence. Keep the fixed master layout. Compress the situation into one small realistic diorama or tightly grouped household object set in the upper-right.',
+    'Variation C: symbolic contrast. Keep the fixed master layout. Use one bold tactile 3D metaphor object or one tightly unified object group in the upper-right; the symbolic object itself contains no people.',
   ];
   return `DELIVERABLE
 Create exactly one premium photorealistic 16:9 YouTube thumbnail background for a Taiwanese personal-finance creator. It must remain clear at phone size and leave usable negative space for a headline added later.
@@ -130,15 +130,21 @@ Content pillar: ${pillar}
 VISUAL DIRECTION
 ${prompt}
 
-COMPOSITION
+NON-NEGOTIABLE BRAND MASTER LAYOUT
+The left 40–45% contains a large chest-up Taiwanese male creator aged 40–50 wearing understated dark rectangular glasses. The upper edge of a dark laptop is visible in the lower-left foreground. The creator looks toward the upper-right, never straight at the camera.
+The upper-right contains exactly one topic-specific hero object, smaller than the creator. For an AI or agent topic, this may be one polished black-and-gold 3D agent character; otherwise use one literal object, miniature diorama, or visual metaphor directly tied to the title.
+The middle-right is a clean rising diagonal zone reserved for the first ivory-white headline. A broad warm-gold diagonal ribbon crosses the lower-right and is reserved for the second, largest headline. Generate both zones without any text. Add only a small restrained warm-gold dot grid in the far upper-right and a subtle dark tabletop or floor along the bottom.
+The reading path must be creator -> hero object -> two diagonal headline zones. Do not move the presenter to the right and do not reserve the left side for text.
+
+ASSIGNED VARIATION
 ${compositions[compositionIndex] || compositions[0]}
-Follow this assigned composition while expressing the selected title, rather than repeating a desk portrait or merely illustrating the broader topic. Do not draw a fake interface screenshot.
+Follow this assigned variation while preserving the same master layout in every result. Express the selected title rather than merely illustrating the broader topic. Do not draw a fake interface screenshot.
 
 STYLE
-Premium photorealistic editorial photography. Black and white are the base; gold is only a small restrained accent, never glowing wealth imagery. Trustworthy, emotionally clear, Taiwanese everyday context, strong subject separation, and realistic materials. Do not default to an amber night scene.
+Premium high-contrast YouTube editorial key art. Photorealistic creator portrait, near-black background, ivory-white highlights, warm metallic gold rim light, crisp cutout separation, realistic materials, mature and trustworthy. The hero object may use polished cinematic 3D rendering while the person remains photorealistic. The composition must remain clear at phone size. Do not default to a full amber night scene.
 
 STRICT CONSTRAINTS
-Absolutely no visible text, Chinese characters, English letters, numbers, logos, watermarks, subtitles, UI labels, cartoons, mascots, generic stock-business-team scenes, gold bars, glowing golden cubes, or money rain.`;
+Absolutely no visible text, Chinese characters, English letters, numbers, logos, watermarks, subtitles, UI labels, extra badges, money, coins, gold bars, rockets, luxury cars, profit charts, holographic interfaces, or generic stock-business-team scenes. Do not add an unrelated mascot; one mature topic-specific 3D AI-agent character is allowed only for an AI or agent topic.`;
 }
 
 function geminiImageFrom(interaction: GeminiInteraction) {
@@ -203,7 +209,7 @@ export async function POST(request: Request) {
       const title = validString(body.title, 220);
       const topic = validString(body.topic, 500);
       const pillar = validString(body.pillar, 40);
-      const prompt = validString(body.prompt, 1800);
+      const prompt = validString(body.prompt, 6000);
       const compositionIndex =
         typeof body.compositionIndex === 'number'
           ? Math.max(0, Math.min(2, Math.trunc(body.compositionIndex)))
@@ -244,7 +250,7 @@ export async function POST(request: Request) {
       const pillar = validString(body.pillar, 40);
       const prompts = Array.isArray(body.prompts)
         ? body.prompts
-            .map((prompt) => validString(prompt, 1800))
+            .map((prompt) => validString(prompt, 6000))
             .filter(Boolean)
             .slice(0, 3)
         : [];

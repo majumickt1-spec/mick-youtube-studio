@@ -107,6 +107,22 @@ function parsePlannedTopics(text: string) {
   return [...new Set(parsed.candidates.map((item) => validString(item, 180)).filter(Boolean))];
 }
 
+function parseTitleOptions(text: string) {
+  const parsed = JSON.parse(text) as { options?: unknown };
+  if (!Array.isArray(parsed.options)) {
+    throw new Error('影片標題結果格式不完整');
+  }
+  const allowedKinds = new Set(['反常型', '金額型', '數字型']);
+  return parsed.options
+    .map((item) => {
+      const option = item as Record<string, unknown>;
+      const kind = validString(option.kind, 10);
+      const title = validString(option.title, 120);
+      return { kind, title };
+    })
+    .filter((option) => allowedKinds.has(option.kind) && option.title);
+}
+
 function validString(value: unknown, maxLength: number) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
@@ -408,6 +424,97 @@ ${sourceList || '沒有取得可引用來源'}
         throw new Error('未能產生 5 個不同選題，請再試一次');
       }
       return Response.json({ candidates });
+    }
+
+    if (phase === 'titleOptions') {
+      const topic = validString(body.topic, 220);
+      if (!['現金流管理', 'AI資產建立'].includes(pillar)) {
+        return Response.json({ error: '創作方向不正確。' }, { status: 400 });
+      }
+      if (!topic) {
+        return Response.json(
+          { error: '請先在 Step 1 選定一個主題。' },
+          { status: 400 },
+        );
+      }
+
+      const prompt = `你是台灣 YouTube 頻道「米克大叔」的標題企劃。請只根據 Step 1 已選定的本集主題，產生 3 個真正對應該主題的 YouTube 標題。
+
+頻道核心：現金流。AI 是建立副業資產、增加非工資收入、降低薪水依賴的手段。
+受眾：35–55 歲、有家庭責任、主要收入來自薪水的台灣上班族。
+創作方向：${pillar}
+Step 1 選定主題：${topic}
+觀眾痛點：${keyword || '未另外提供'}
+補充觀點／親身經驗／案例：${supplement || '未提供'}
+對標影片／參考來源／筆記：${references || '未提供'}
+
+請依序提供：
+1. 反常型：打破一個與本集主題直接相關的直覺，讓人想知道原因。
+2. 金額型：只有上方資料確實提供且與本集主題直接相關的真實金額時才使用「金額型」；否則改成第二個不同角度的「反常型」，禁止編造金額、收入或成效。
+3. 數字型：先根據這一集實際能拆出的內容，再選 2–7 之間有意義的數量與具體單位，例如資料、設定、判斷、門檻、錯誤或檢查點。數字必須與標題承諾一致，不可假裝有未提供的實測結果。
+
+規則：
+- 先從 Step 1 選定主題擷取 2–4 個不可替換的核心詞；三個標題都必須保留至少一個核心詞與該題獨有的承諾。
+- 換一個 Step 1 主題時，三個標題的主詞、衝突與數字型單位都必須重新判斷，不能沿用上一題的泛用句型。
+- 數字型禁止預設套用「3 個問題」「3 個步驟」「3 個數字」；只有內容確實最適合三項時才能使用 3，而且後面的單位必須直接對應本集主題。
+- 三個標題的開頭與句型必須不同；不能只是把同一句話換兩三個字。
+- 每個標題約 18–34 個中文字，不加分類標籤，不寫空洞口號。
+- 鎖定一個場景、一個痛點、一個懸念；標題是包裝，不可擅自改變本集主體。
+- 不使用 ETF、個股、高報酬率、財富自由、被動收入作為吸睛詞。
+- 不可杜撰本人經歷、客戶、成果、觀看數、收入、年份或金額。
+
+只輸出符合指定 JSON Schema 的結果。`;
+
+      const result = await openAIRequest(
+        apiKey,
+        '/responses',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            model,
+            reasoning: { effort: 'low' },
+            max_output_tokens: 900,
+            input: prompt,
+            text: {
+              format: {
+                type: 'json_schema',
+                name: 'youtube_title_options',
+                strict: true,
+                schema: {
+                  type: 'object',
+                  properties: {
+                    options: {
+                      type: 'array',
+                      minItems: 3,
+                      maxItems: 3,
+                      items: {
+                        type: 'object',
+                        properties: {
+                          kind: {
+                            type: 'string',
+                            enum: ['反常型', '金額型', '數字型'],
+                          },
+                          title: { type: 'string' },
+                        },
+                        required: ['kind', 'title'],
+                        additionalProperties: false,
+                      },
+                    },
+                  },
+                  required: ['options'],
+                  additionalProperties: false,
+                },
+              },
+            },
+          }),
+        },
+        52_000,
+      );
+      const options = parseTitleOptions(textFrom(result)).slice(0, 3);
+      if (options.length !== 3) {
+        throw new Error('未能產生 3 個有效標題，請再試一次');
+      }
+      return Response.json({ options });
     }
 
     return Response.json({ error: '不支援的處理階段。' }, { status: 400 });

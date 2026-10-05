@@ -194,9 +194,26 @@ function cleanHeadlinePart(value: string) {
 function compact(value: string, maxLength = 9, fromEnd = false) {
   const cleaned = cleanHeadlinePart(value);
   if (cleaned.length <= maxLength) return cleaned;
-  return fromEnd
-    ? cleaned.slice(cleaned.length - maxLength)
-    : cleaned.slice(0, maxLength);
+  if (fromEnd) {
+    let start = cleaned.length - maxLength;
+    while (
+      start > 0 &&
+      /[A-Za-z0-9]/.test(cleaned[start - 1]) &&
+      /[A-Za-z0-9]/.test(cleaned[start])
+    ) {
+      start -= 1;
+    }
+    return cleaned.slice(start);
+  }
+  let end = maxLength;
+  while (
+    end < cleaned.length &&
+    /[A-Za-z0-9]/.test(cleaned[end - 1]) &&
+    /[A-Za-z0-9]/.test(cleaned[end])
+  ) {
+    end += 1;
+  }
+  return cleaned.slice(0, end);
 }
 
 function uniqueHeadlines(values: string[], title: string) {
@@ -215,6 +232,11 @@ function uniqueHeadlines(values: string[], title: string) {
 }
 
 const approvedHeadlineSets: Record<string, [string, string, string]> = {
+  '懂我的 AI Agent 真的能替我工作嗎？': [
+    '懂我的 AI Agent',
+    '真的能替我工作嗎？',
+    'AI Agent 能工作？',
+  ],
   '影片一直做，為什麼還沒變成能累積的資產？': [
     '一直做卻沒累積',
     '影片不是資產？',
@@ -428,30 +450,36 @@ export function makeThumbnailIdeas(
   const headlines = makeThumbnailHeadlines(safeTitle);
   const visualSeed = makeVisualSeed(safeTopic, safeTitle);
 
-  const sharedStyle = `Premium photorealistic editorial photography with realistic Taiwanese everyday details. Black, white, and neutral tones form the visual base, with only one restrained warm-gold accent. Leave the left third clean for a headline added later. Strong subject separation and a simple silhouette that remains readable at phone size.`;
-  const sharedConstraints = `No visible text, readable screen interface, numbers, logos, watermarks, cartoons, office stock-photo pose, gold bars, glowing cubes, or money rain.`;
+  const masterLayout = `Use the fixed Mick Uncle black-gold thumbnail layout: a large chest-up Taiwanese male creator aged 40–50 wearing understated dark rectangular glasses occupies the left 40–45%, with the top edge of a dark laptop visible in the lower-left foreground. He turns his eyes toward one topic-specific hero object in the upper-right. Keep the hero object smaller than the creator. Reserve the middle-right as a clean rising diagonal zone for the first headline, and place one broad warm-gold diagonal ribbon across the lower-right for the second, largest headline to be added later. Add only a small restrained grid of warm-gold dots in the far upper-right and a subtle dark tabletop or floor along the bottom.`;
+  const sharedStyle = `Premium high-contrast YouTube editorial key art, photorealistic creator portrait, near-black background, ivory-white highlights, warm metallic gold rim light, crisp cutout separation, mature and trustworthy rather than flashy. The composition must read clearly at phone size and follow the same left-to-right visual path: creator, hero object, diagonal headline zones.`;
+  const sharedConstraints = `Generate the background and visual subjects only. No visible text, letters, Chinese characters, numbers, logos, watermarks, subtitles, UI labels, extra badges, money, coins, gold bars, rockets, luxury cars, profit charts, holographic interfaces, or generic office stock-photo poses. A single polished black-and-gold 3D AI-agent character is allowed only when the selected topic is directly about AI or agents; do not add unrelated mascots.`;
+  const twoLineHeadlines = [
+    `${headlines[0]}／${headlines[1]}`,
+    `${headlines[1]}／${headlines[2]}`,
+    `${headlines[0]}／${headlines[2]}`,
+  ];
 
   return [
     {
       name: '情緒衝突',
-      text: headlines[0],
-      scene: `人物情緒衝突：${visualSeed.emotional.scene}`,
-      prompt: `Direction A — emotional conflict. REQUIRED LITERAL SCENE: ${visualSeed.emotional.prompt} Use a candid ${round.cameraA} and ${round.mood}. ${sharedStyle} Natural skin texture and realistic posture. ${sharedConstraints}`,
-      canvaPrompt: `Create one photorealistic 16:9 YouTube thumbnail background. REQUIRED SCENE: ${visualSeed.emotional.prompt} COMPOSITION: candid ${round.cameraA}; keep the subject on the right half and leave the left third quiet and uncluttered. LIGHTING: ${round.mood}. STYLE: ${sharedStyle} CONSTRAINTS: ${sharedConstraints} Do not add the headline inside the image.`,
+      text: twoLineHeadlines[0],
+      scene: `固定黑金母版：左側本人與筆電；右上把「${visualSeed.emotional.scene}」濃縮成一個情緒衝突主題物件；右側預留雙層斜向大字。`,
+      prompt: `Direction A — emotional conflict in the fixed brand layout. SEMANTIC SOURCE: ${visualSeed.emotional.prompt} Rebuild this idea inside the master layout instead of reproducing a full room scene. Give the creator a thoughtful, concerned expression and turn his gaze toward one compact literal object cluster that makes the conflict immediately understandable. ${masterLayout} Use ${round.mood}. ${sharedStyle} Natural skin texture and realistic posture. ${sharedConstraints}`,
+      canvaPrompt: `Create one 16:9 YouTube thumbnail background in the fixed Mick Uncle black-gold brand layout. SEMANTIC IDEA: ${visualSeed.emotional.prompt} Convert the idea into one compact hero object or object cluster in the upper-right, not a full-width scene. LAYOUT: ${masterLayout} LIGHTING: ${round.mood}. STYLE: ${sharedStyle} CONSTRAINTS: ${sharedConstraints}`,
     },
     {
       name: '生活情境',
-      text: headlines[1],
-      scene: `生活因果情境：${visualSeed.situation.scene}`,
-      prompt: `Direction B — lived-in situation. REQUIRED LITERAL SCENE: ${visualSeed.situation.prompt} Use a ${round.cameraB} and ${round.mood}. ${sharedStyle} The person is part of the activity, never posing. ${sharedConstraints}`,
-      canvaPrompt: `Create one photorealistic 16:9 YouTube thumbnail background. REQUIRED SCENE: ${visualSeed.situation.prompt} COMPOSITION: ${round.cameraB}; keep the main activity on the right two-thirds and leave quiet negative space in the upper-left. LIGHTING: ${round.mood}. STYLE: ${sharedStyle} CONSTRAINTS: ${sharedConstraints} Do not add the headline inside the image.`,
+      text: twoLineHeadlines[1],
+      scene: `固定黑金母版：左側本人與筆電；右上把「${visualSeed.situation.scene}」做成單一微縮生活情境；右側預留雙層斜向大字。`,
+      prompt: `Direction B — lived-in cause and consequence in the fixed brand layout. SEMANTIC SOURCE: ${visualSeed.situation.prompt} Compress the situation into one clear miniature diorama or tightly grouped set of realistic household objects in the upper-right. Do not expand it into a full-width environment. ${masterLayout} Use ${round.mood}. ${sharedStyle} The creator reacts naturally to the diorama rather than posing at the camera. ${sharedConstraints}`,
+      canvaPrompt: `Create one 16:9 YouTube thumbnail background in the fixed Mick Uncle black-gold brand layout. SEMANTIC IDEA: ${visualSeed.situation.prompt} Compress the cause-and-effect scene into one clear miniature diorama or tightly grouped household object set in the upper-right. LAYOUT: ${masterLayout} LIGHTING: ${round.mood}. STYLE: ${sharedStyle} CONSTRAINTS: ${sharedConstraints}`,
     },
     {
       name: '象徵對比',
-      text: headlines[2],
-      scene: `物件象徵對比：${visualSeed.symbolic.scene}`,
-      prompt: `Direction C — symbolic contrast. REQUIRED LITERAL SCENE: ${visualSeed.symbolic.prompt} Create a people-free ${round.cameraC} using ${round.mood}. ${sharedStyle} Favor tactile real materials. ${sharedConstraints} No people, faces, hands, or bodies.`,
-      canvaPrompt: `Create one photorealistic 16:9 YouTube thumbnail background. REQUIRED SCENE: ${visualSeed.symbolic.prompt} COMPOSITION: people-free ${round.cameraC}; place the visual contrast on the right two-thirds and leave the left third clean. LIGHTING: ${round.mood}. STYLE: ${sharedStyle} CONSTRAINTS: ${sharedConstraints} No people, faces, hands, or bodies. Do not add the headline inside the image.`,
+      text: twoLineHeadlines[2],
+      scene: `固定黑金母版：左側本人與筆電；右上把「${visualSeed.symbolic.scene}」立體化成單一象徵對比物件；右側預留雙層斜向大字。`,
+      prompt: `Direction C — symbolic contrast in the fixed brand layout. SEMANTIC SOURCE: ${visualSeed.symbolic.prompt} Turn the contrast into one bold tactile 3D hero object or one tightly unified object group in the upper-right; the symbolic object contains no people. ${masterLayout} Use ${round.mood}. ${sharedStyle} Favor realistic materials and an instantly readable silhouette. ${sharedConstraints}`,
+      canvaPrompt: `Create one 16:9 YouTube thumbnail background in the fixed Mick Uncle black-gold brand layout. SEMANTIC IDEA: ${visualSeed.symbolic.prompt} Turn the contrast into one bold tactile 3D hero object or tightly unified object group in the upper-right; the symbolic object itself contains no people. LAYOUT: ${masterLayout} LIGHTING: ${round.mood}. STYLE: ${sharedStyle} CONSTRAINTS: ${sharedConstraints}`,
     },
   ];
 }
