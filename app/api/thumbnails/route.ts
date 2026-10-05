@@ -112,9 +112,9 @@ function finalPrompt(
   compositionIndex: number,
 ) {
   const compositions = [
-    'Variation A: emotional conflict. Keep the fixed master layout. Use a thoughtful or concerned presenter portrait on the left and one compact literal conflict object in the upper-right.',
-    'Variation B: lived-in cause and consequence. Keep the fixed master layout. Compress the situation into one small realistic diorama or tightly grouped household object set in the upper-right.',
-    'Variation C: symbolic contrast. Keep the fixed master layout. Use one bold tactile 3D metaphor object or one tightly unified object group in the upper-right; the symbolic object itself contains no people.',
+    'DIRECTION A — EMOTIONAL CONFLICT: use a large chest-up creator portrait on the left 40–45%, a clear topic-specific expression and hand gesture, a laptop edge in the lower-left, and one compact conflict object in the upper-right. This must read as an emotional portrait, not a wide room scene or object-only still life.',
+    'DIRECTION B — LIVED-IN SITUATION: use a wide Taiwanese home, dining-table, or after-work environment. Keep the creator smaller at roughly 25–32% of the frame and naturally performing the topic-specific action. Show cause and consequence through real props across foreground and background. Do not use the large left-side cutout portrait from Direction A and do not compress the setting into one small object cluster.',
+    'DIRECTION C — SYMBOLIC CONTRAST: absolutely no presenter, person, face, hand, or body. Use one oversized tactile metaphor or one strongly contrasted object pair as the dominant visual, with dramatic scale and depth. This must read as object symbolism, not a portrait or lived-in human scene.',
   ];
   return `DELIVERABLE
 Create exactly one premium semi-realistic hand-painted 16:9 YouTube thumbnail background for a Taiwanese personal-finance creator. It must look illustrated rather than photographed, remain clear at phone size, and leave usable negative space for a headline added later.
@@ -130,18 +130,15 @@ Content pillar: ${pillar}
 VISUAL DIRECTION
 ${prompt}
 
-NON-NEGOTIABLE BRAND MASTER LAYOUT
-The left 40–45% contains a large chest-up Taiwanese male creator aged 40–50 wearing understated dark rectangular glasses. The upper edge of a dark laptop is visible in the lower-left foreground. The creator looks toward the upper-right, never straight at the camera.
-The upper-right contains exactly one topic-specific hero object, smaller than the creator. For an AI or agent topic, this may be one polished black-and-gold 3D agent character; otherwise use one literal object, miniature diorama, or visual metaphor directly tied to the title.
-The middle-right is a clean rising diagonal zone reserved for the first ivory-white headline. A broad warm-gold diagonal ribbon crosses the lower-right and is reserved for the second, largest headline. Generate both zones without any text. Add only a small restrained warm-gold dot grid in the far upper-right and a subtle dark tabletop or floor along the bottom.
-The reading path must be creator -> hero object -> two diagonal headline zones. Do not move the presenter to the right and do not reserve the left side for text.
+SHARED BRAND DNA — STYLE IS FIXED, COMPOSITION IS NOT
+Every result uses the same semi-realistic hand-painted black, ivory-white, and warm-gold brand language, with two clean diagonal headline zones, one broad warm-gold diagonal ribbon, strong mobile-size hierarchy, and only a small restrained gold dot-grid accent. These shared brand elements must not force the same subject placement in all three results.
 
-ASSIGNED VARIATION
+ASSIGNED COMPOSITION — MUST LOOK CLEARLY DIFFERENT FROM THE OTHER TWO
 ${compositions[compositionIndex] || compositions[0]}
-Follow this assigned variation while preserving the same master layout in every result. Express the selected title rather than merely illustrating the broader topic. Do not draw a fake interface screenshot.
+Follow only this assigned composition. Do not blend it with either of the other two directions. Express the selected title rather than merely illustrating the broader topic. Do not draw a fake interface screenshot.
 
 STYLE
-Premium high-contrast semi-realistic hand-painted YouTube editorial illustration, not photography. Preserve believable adult facial anatomy, recognizable human proportions, understated expressions, and natural posture. Use visible fine pencil and charcoal cross-hatching, textured digital brushwork, softly simplified skin planes, and a refined illustrated finish. Near-black background, ivory-white highlights, warm metallic gold rim light, crisp cutout separation, mature and trustworthy. The hero object may use polished cinematic 3D rendering, but the creator must remain a hand-painted illustrated portrait. The composition must remain clear at phone size. Do not default to a full amber night scene.
+Premium high-contrast semi-realistic hand-painted YouTube editorial illustration, not photography. When a person is present, preserve believable adult facial anatomy, recognizable human proportions, understated expressions, and natural posture. Use visible fine pencil and charcoal cross-hatching, textured digital brushwork, softly simplified forms, and a refined illustrated finish. Near-black base, ivory-white highlights, warm metallic gold rim light, crisp focal separation, mature and trustworthy. Topic objects may use polished cinematic 3D rendering. The composition must remain clear at phone size. Do not default to a full amber night scene.
 
 STRICT CONSTRAINTS
 Absolutely no photorealistic camera look, photographic skin pores, flat vector art, anime, manga, chibi proportions, children's-book cartoon style, visible text, Chinese characters, English letters, numbers, logos, watermarks, subtitles, UI labels, extra badges, money, coins, gold bars, rockets, luxury cars, profit charts, holographic interfaces, or generic stock-business-team scenes. Do not add an unrelated mascot; one mature topic-specific 3D AI-agent character is allowed only for an AI or agent topic.`;

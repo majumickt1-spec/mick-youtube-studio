@@ -1642,7 +1642,7 @@ export default function Home() {
         <TabsContent value="1">
           <StageShell
             step="STEP 02"
-            eyebrow="固定黑金半寫實手繪母版，中文字留到後續疊加"
+            eyebrow="同一黑金半寫實手繪品牌，三種明確構圖"
             title="GPT Image 2.5 與 Nano Banana Pro，各生成 3 組同品牌縮圖。"
           >
             {!state.selectedTopic ? (
@@ -1733,7 +1733,7 @@ export default function Home() {
                                 {provider.name}｜3 組縮圖
                               </p>
                               <p className="mt-1 text-xs text-muted-foreground">
-                                {provider.detail}｜固定版型、無字、不同主題物件
+                                {provider.detail}｜同品牌、三種構圖、無字
                               </p>
                               <Badge className="mt-3 border-[#d4af64]/40 bg-[#d4af64]/10 text-[#795d24]">
                                 {thumbnailConnections[provider.id] === null
@@ -1749,10 +1749,10 @@ export default function Home() {
                           </div>
                           <div className="mt-5 rounded-2xl border border-[#d4af64]/30 bg-[#faf8f1] p-4">
                             <p className="text-sm font-semibold">
-                              固定使用「左側本人＋筆電、右上主題物件、右側雙層斜向大字」黑金半寫實手繪母版，再依標題變化三種主題物件。
+                              三組共用黑金半寫實手繪品牌，但構圖明確分成：人物近景的情緒衝突、完整環境的生活情境、完全無人物的象徵對比。
                             </p>
                             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                              三組都保留金色斜帶與兩層標題空間；大字會從所選標題提煉。重新生成會輪替表情、光線與右上主題物件，並使用{' '}
+                              三組都保留金色斜帶與兩層標題空間；大字會從所選標題提煉。重新生成會輪替鏡位、光線與主題細節，並使用{' '}
                               {provider.name} API 額度；圖片不直接生成文字、數字或標誌，避免亂碼。
                             </p>
                             <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
