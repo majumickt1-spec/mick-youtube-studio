@@ -117,7 +117,7 @@ function finalPrompt(
     'Variation C: symbolic contrast. Keep the fixed master layout. Use one bold tactile 3D metaphor object or one tightly unified object group in the upper-right; the symbolic object itself contains no people.',
   ];
   return `DELIVERABLE
-Create exactly one premium photorealistic 16:9 YouTube thumbnail background for a Taiwanese personal-finance creator. It must remain clear at phone size and leave usable negative space for a headline added later.
+Create exactly one premium semi-realistic hand-painted 16:9 YouTube thumbnail background for a Taiwanese personal-finance creator. It must look illustrated rather than photographed, remain clear at phone size, and leave usable negative space for a headline added later.
 
 SELECTED TITLE — PRIMARY CREATIVE BRIEF
 ${title}
@@ -141,10 +141,10 @@ ${compositions[compositionIndex] || compositions[0]}
 Follow this assigned variation while preserving the same master layout in every result. Express the selected title rather than merely illustrating the broader topic. Do not draw a fake interface screenshot.
 
 STYLE
-Premium high-contrast YouTube editorial key art. Photorealistic creator portrait, near-black background, ivory-white highlights, warm metallic gold rim light, crisp cutout separation, realistic materials, mature and trustworthy. The hero object may use polished cinematic 3D rendering while the person remains photorealistic. The composition must remain clear at phone size. Do not default to a full amber night scene.
+Premium high-contrast semi-realistic hand-painted YouTube editorial illustration, not photography. Preserve believable adult facial anatomy, recognizable human proportions, understated expressions, and natural posture. Use visible fine pencil and charcoal cross-hatching, textured digital brushwork, softly simplified skin planes, and a refined illustrated finish. Near-black background, ivory-white highlights, warm metallic gold rim light, crisp cutout separation, mature and trustworthy. The hero object may use polished cinematic 3D rendering, but the creator must remain a hand-painted illustrated portrait. The composition must remain clear at phone size. Do not default to a full amber night scene.
 
 STRICT CONSTRAINTS
-Absolutely no visible text, Chinese characters, English letters, numbers, logos, watermarks, subtitles, UI labels, extra badges, money, coins, gold bars, rockets, luxury cars, profit charts, holographic interfaces, or generic stock-business-team scenes. Do not add an unrelated mascot; one mature topic-specific 3D AI-agent character is allowed only for an AI or agent topic.`;
+Absolutely no photorealistic camera look, photographic skin pores, flat vector art, anime, manga, chibi proportions, children's-book cartoon style, visible text, Chinese characters, English letters, numbers, logos, watermarks, subtitles, UI labels, extra badges, money, coins, gold bars, rockets, luxury cars, profit charts, holographic interfaces, or generic stock-business-team scenes. Do not add an unrelated mascot; one mature topic-specific 3D AI-agent character is allowed only for an AI or agent topic.`;
 }
 
 function geminiImageFrom(interaction: GeminiInteraction) {

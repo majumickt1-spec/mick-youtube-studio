@@ -1642,7 +1642,7 @@ export default function Home() {
         <TabsContent value="1">
           <StageShell
             step="STEP 02"
-            eyebrow="固定黑金母版，中文字留到後續疊加"
+            eyebrow="固定黑金半寫實手繪母版，中文字留到後續疊加"
             title="GPT Image 2.5 與 Nano Banana Pro，各生成 3 組同品牌縮圖。"
           >
             {!state.selectedTopic ? (
@@ -1749,7 +1749,7 @@ export default function Home() {
                           </div>
                           <div className="mt-5 rounded-2xl border border-[#d4af64]/30 bg-[#faf8f1] p-4">
                             <p className="text-sm font-semibold">
-                              固定使用「左側本人＋筆電、右上主題物件、右側雙層斜向大字」黑金母版，再依標題變化三種主題物件。
+                              固定使用「左側本人＋筆電、右上主題物件、右側雙層斜向大字」黑金半寫實手繪母版，再依標題變化三種主題物件。
                             </p>
                             <p className="mt-1 text-xs leading-5 text-muted-foreground">
                               三組都保留金色斜帶與兩層標題空間；大字會從所選標題提煉。重新生成會輪替表情、光線與右上主題物件，並使用{' '}
