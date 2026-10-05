@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 export const maxDuration = 60;
 
 const OPENAI_URL = 'https://api.openai.com/v1';
@@ -5,6 +8,20 @@ const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta';
 const DEFAULT_TEXT_MODEL = 'gpt-5.6-luna';
 const DEFAULT_OPENAI_IMAGE_MODEL = 'gpt-image-2.5-flare';
 const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3-pro-image';
+const CREATOR_REFERENCE_PATH = join(
+  process.cwd(),
+  'public',
+  'mick-character-reference.jpg',
+);
+
+let creatorReferencePromise: Promise<string> | null = null;
+
+function creatorReferenceBase64() {
+  creatorReferencePromise ??= readFile(CREATOR_REFERENCE_PATH).then((buffer) =>
+    buffer.toString('base64'),
+  );
+  return creatorReferencePromise;
+}
 
 type ThumbnailProvider = 'openai' | 'google';
 
@@ -114,7 +131,7 @@ function finalPrompt(
   const compositions = [
     'DIRECTION A — EMOTIONAL CONFLICT: use a large chest-up creator portrait on the left 40–45%, a clear topic-specific expression and hand gesture, a laptop edge in the lower-left, and one compact conflict object in the upper-right. This must read as an emotional portrait, not a wide room scene or object-only still life.',
     'DIRECTION B — LIVED-IN SITUATION: use a wide Taiwanese home, dining-table, or after-work environment. Keep the creator smaller at roughly 25–32% of the frame and naturally performing the topic-specific action. Show cause and consequence through real props across foreground and background. Do not use the large left-side cutout portrait from Direction A and do not compress the setting into one small object cluster.',
-    'DIRECTION C — SYMBOLIC CONTRAST: absolutely no presenter, person, face, hand, or body. Use one oversized tactile metaphor or one strongly contrasted object pair as the dominant visual, with dramatic scale and depth. This must read as object symbolism, not a portrait or lived-in human scene.',
+    'DIRECTION C — LEFT/RIGHT BEFORE-AFTER CONTRAST: divide the frame into two clearly different halves. Show the same referenced creator on both sides with the same face, glasses, hair, clothing, and body proportions. The left side is BEFORE: darker, cluttered, inefficient, pressured, or stuck, supported by topic-specific problem objects. The right side is AFTER: clearer, organized, calmer, and visibly improved, supported by the corresponding solution objects. Use a strong vertical or diagonal transition at the center. Do not create two unrelated people or two unrelated scenes.',
   ];
   return `DELIVERABLE
 Create exactly one premium semi-realistic hand-painted 16:9 YouTube thumbnail background for a Taiwanese personal-finance creator. It must look illustrated rather than photographed, remain clear at phone size, and leave usable negative space for a headline added later.
@@ -126,6 +143,9 @@ The image must be designed from this selected title's specific promise, conflict
 SECONDARY CONTEXT
 Broader topic: ${topic}
 Content pillar: ${pillar}
+
+CREATOR IDENTITY REFERENCE — REQUIRED
+An attached reference sheet shows the only creator allowed in this thumbnail. Preserve his recognizable face shape, short spiky black hair, dark rectangular glasses, calm mature expression, black textured sweater over a white collared shirt, dark trousers, brown shoes, and black wristwatch. Treat the sheet as an identity and wardrobe reference, not as content to copy into the thumbnail. Do not reproduce the white contact-sheet background, multiple pose lineup, or sketch-sheet layout. Direction A uses one close portrait, Direction B uses one smaller environmental figure, and Direction C uses the same creator twice as before and after. Do not invent a different host or add other people.
 
 VISUAL DIRECTION
 ${prompt}
@@ -141,7 +161,7 @@ STYLE
 Premium high-contrast semi-realistic hand-painted YouTube editorial illustration, not photography. When a person is present, preserve believable adult facial anatomy, recognizable human proportions, understated expressions, and natural posture. Use visible fine pencil and charcoal cross-hatching, textured digital brushwork, softly simplified forms, and a refined illustrated finish. Near-black base, ivory-white highlights, warm metallic gold rim light, crisp focal separation, mature and trustworthy. Topic objects may use polished cinematic 3D rendering. The composition must remain clear at phone size. Do not default to a full amber night scene.
 
 STRICT CONSTRAINTS
-Absolutely no photorealistic camera look, photographic skin pores, flat vector art, anime, manga, chibi proportions, children's-book cartoon style, visible text, Chinese characters, English letters, numbers, logos, watermarks, subtitles, UI labels, extra badges, money, coins, gold bars, rockets, luxury cars, profit charts, holographic interfaces, or generic stock-business-team scenes. Do not add an unrelated mascot; one mature topic-specific 3D AI-agent character is allowed only for an AI or agent topic.`;
+Absolutely no replacement presenter, changed face, changed glasses, changed hairstyle, changed wardrobe, unrelated people, photorealistic camera look, photographic skin pores, flat vector art, anime, manga, chibi proportions, children's-book cartoon style, visible text, Chinese characters, English letters, numbers, logos, watermarks, subtitles, UI labels, extra badges, money, coins, gold bars, rockets, luxury cars, profit charts, holographic interfaces, or generic stock-business-team scenes. Do not add an unrelated mascot; one mature topic-specific 3D AI-agent character is allowed only for an AI or agent topic.`;
 }
 
 function geminiImageFrom(interaction: GeminiInteraction) {
@@ -218,6 +238,8 @@ export async function POST(request: Request) {
         );
       }
 
+      const creatorReference = await creatorReferenceBase64();
+
       const result = await geminiRequest(
         apiKey,
         '/interactions',
@@ -225,7 +247,23 @@ export async function POST(request: Request) {
           method: 'POST',
           body: JSON.stringify({
             model: process.env.GEMINI_IMAGE_MODEL || DEFAULT_GEMINI_IMAGE_MODEL,
-            input: finalPrompt(prompt, title, topic, pillar, compositionIndex),
+            input: [
+              {
+                type: 'text',
+                text: finalPrompt(
+                  prompt,
+                  title,
+                  topic,
+                  pillar,
+                  compositionIndex,
+                ),
+              },
+              {
+                type: 'image',
+                mime_type: 'image/jpeg',
+                data: creatorReference,
+              },
+            ],
             response_format: {
               type: 'image',
               aspect_ratio: '16:9',
@@ -260,6 +298,7 @@ export async function POST(request: Request) {
 
       const jobs: Array<{ index: number; responseId: string }> = [];
       const failures: string[] = [];
+      const creatorReference = await creatorReferenceBase64();
       for (const [index, prompt] of prompts.entries()) {
         try {
           const completePrompt = finalPrompt(
@@ -276,7 +315,19 @@ export async function POST(request: Request) {
                 model: process.env.OPENAI_MODEL || DEFAULT_TEXT_MODEL,
                 background: true,
                 store: true,
-                input: completePrompt,
+                input: [
+                  {
+                    role: 'user',
+                    content: [
+                      { type: 'input_text', text: completePrompt },
+                      {
+                        type: 'input_image',
+                        image_url: `data:image/jpeg;base64,${creatorReference}`,
+                        detail: 'high',
+                      },
+                    ],
+                  },
+                ],
                 tools: [
                   {
                     type: 'image_generation',

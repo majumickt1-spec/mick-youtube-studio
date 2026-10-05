@@ -1749,7 +1749,7 @@ export default function Home() {
                           </div>
                           <div className="mt-5 rounded-2xl border border-[#d4af64]/30 bg-[#faf8f1] p-4">
                             <p className="text-sm font-semibold">
-                              三組共用黑金半寫實手繪品牌，但構圖明確分成：人物近景的情緒衝突、完整環境的生活情境、完全無人物的象徵對比。
+                              三組都以你提供的人物設定圖作為唯一主角參考；構圖分成：人物近景的情緒衝突、完整環境的生活情境、同一人物左右分割的改變前／改變後對比。
                             </p>
                             <p className="mt-1 text-xs leading-5 text-muted-foreground">
                               三組都保留金色斜帶與兩層標題空間；大字會從所選標題提煉。重新生成會輪替鏡位、光線與主題細節，並使用{' '}

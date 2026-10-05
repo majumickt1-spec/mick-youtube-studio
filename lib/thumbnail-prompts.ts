@@ -49,9 +49,9 @@ function makeVisualSeed(topic: string, title: string): VisualSeed {
           'Inside a lived-in Taiwanese apartment, a creator sits at a dining table after finishing several videos. Blank storyboard cards and a small camera fill one side of the table, while household bills and a nearly empty glass savings jar sit on the other side. The person quietly compares the two sides instead of posing.',
       },
       symbolic: {
-        scene: '無人物俯拍：大量完成的空白影片卡片堆成高塔，旁邊卻是扁平的空錢包，形成一眼看懂的反差。',
+        scene: '物件隱喻：大量完成的空白影片卡片堆成高塔，旁邊卻是扁平的空錢包，形成一眼看懂的反差。',
         prompt:
-          'A people-free overhead still life: a tall stack of blank video-frame cards and a small camera-memory-card case on one side, contrasted with a flattened nearly empty dark wallet on the other. The height difference must be immediately obvious.',
+          'Object symbolism: a tall stack of blank video-frame cards and a small camera-memory-card case on one side, contrasted with a flattened nearly empty dark wallet on the other. The height difference must be immediately obvious.',
       },
     };
   }
@@ -69,9 +69,9 @@ function makeVisualSeed(topic: string, title: string): VisualSeed {
           'In a modest Taiwanese home dining area, one adult sorts a row of household expense envelopes beside a nearly empty emergency savings jar and a blank monthly calendar. The scene clearly shows a family calculating how little financial runway remains.',
       },
       symbolic: {
-        scene: '無人物俯拍：很短的一排日曆方塊即將撞上厚厚的家庭帳單，旁邊只剩少量零錢。',
+        scene: '物件隱喻：很短的一排日曆方塊即將撞上厚厚的家庭帳單，旁邊只剩少量零錢。',
         prompt:
-          'A people-free overhead still life: a very short row of blank calendar blocks leads directly into a thick stack of household expense envelopes, with only a few loose coins remaining beside them. The short runway is unmistakable.',
+          'Object symbolism: a very short row of blank calendar blocks leads directly into a thick stack of household expense envelopes, with only a few loose coins remaining beside them. The short runway is unmistakable.',
       },
     };
   }
@@ -89,9 +89,9 @@ function makeVisualSeed(topic: string, title: string): VisualSeed {
           'A lived-in Taiwanese household budgeting scene: a thick bundle of loan documents and payment envelopes sits on the left, while two modest household and savings envelopes are being reorganized on the right. One adult naturally moves the envelopes between the two sides.',
       },
       symbolic: {
-        scene: '無人物靜物：厚重的貸款信封壓住細小現金流，剪斷一節束帶後，一個生活費信封被釋放出來。',
+        scene: '物件隱喻：厚重的貸款信封壓住細小現金流，剪斷一節束帶後，一個生活費信封被釋放出來。',
         prompt:
-          'A people-free still life: a thick bundle of plain loan envelopes weighs down a narrow paper path, while one loosened strap releases a single household-expense envelope. Use real paper and tactile materials, not fantasy symbols.',
+          'Object symbolism: a thick bundle of plain loan envelopes weighs down a narrow paper path, while one loosened strap releases a single household-expense envelope. Use real paper and tactile materials, not fantasy symbols.',
       },
     };
   }
@@ -109,9 +109,9 @@ function makeVisualSeed(topic: string, title: string): VisualSeed {
           'Inside a newly occupied Taiwanese apartment, moving boxes and a home key show ownership, while a dining table crowded with mortgage and utility envelopes leaves only a thin household cash envelope. One adult sorts the expenses naturally.',
       },
       symbolic: {
-        scene: '無人物俯拍：房屋鑰匙壓在厚房貸信封上，另一側只剩薄薄的生活費信封。',
+        scene: '物件隱喻：房屋鑰匙壓在厚房貸信封上，另一側只剩薄薄的生活費信封。',
         prompt:
-          'A people-free overhead still life: a home key rests on a thick plain mortgage envelope, sharply contrasted with one very thin household-expense envelope on the other side. Make the imbalance immediately readable.',
+          'Object symbolism: a home key rests on a thick plain mortgage envelope, sharply contrasted with one very thin household-expense envelope on the other side. Make the imbalance immediately readable.',
       },
     };
   }
@@ -129,9 +129,9 @@ function makeVisualSeed(topic: string, title: string): VisualSeed {
           'A lived-in Taiwanese household budgeting scene: policy folders and premium-payment envelopes crowd one side of the table, while grocery and daily-expense envelopes on the other side are visibly sparse. One adult is trying to rebalance them.',
       },
       symbolic: {
-        scene: '無人物靜物：厚厚保單資料壓住一個極薄的生活費信封，呈現保障很多但現金不足。',
+        scene: '物件隱喻：厚厚保單資料壓住一個極薄的生活費信封，呈現保障很多但現金不足。',
         prompt:
-          'A people-free still life: a heavy stack of plain insurance-policy folders physically presses down on one very thin household-expense envelope. Real paper, restrained composition, and an obvious weight imbalance.',
+          'Object symbolism: a heavy stack of plain insurance-policy folders physically presses down on one very thin household-expense envelope. Real paper, restrained composition, and an obvious weight imbalance.',
       },
     };
   }
@@ -149,9 +149,9 @@ function makeVisualSeed(topic: string, title: string): VisualSeed {
           'A wider Taiwanese home side-business scene: scattered duplicate task cards, cables, and unfinished one-off work cover the left side of a dining table, while one compact organized workflow box with neatly ordered blank cards sits on the right. The adult is moving one task into the reusable system.',
       },
       symbolic: {
-        scene: '無人物俯拍：大量散亂的一次性任務卡消耗沙漏，旁邊只有一套整齊可重複使用的流程卡。',
+        scene: '物件隱喻：大量散亂的一次性任務卡消耗沙漏，旁邊只有一套整齊可重複使用的流程卡。',
         prompt:
-          'A people-free overhead still life: many scattered duplicate task cards surround a nearly empty hourglass, contrasted with one compact stack of neatly ordered reusable process cards. The difference between repeated labor and a reusable system must be obvious.',
+          'Object symbolism: many scattered duplicate task cards surround a nearly empty hourglass, contrasted with one compact stack of neatly ordered reusable process cards. The difference between repeated labor and a reusable system must be obvious.',
       },
     };
   }
@@ -168,9 +168,9 @@ function makeVisualSeed(topic: string, title: string): VisualSeed {
         'A lived-in Taiwanese household budgeting scene: one monthly income envelope sits at the center while mortgage, card-payment, grocery, and utility envelopes pull the available household money in different directions. One adult naturally traces where the money goes.',
     },
     symbolic: {
-      scene: '無人物俯拍：一個收入信封連向多個支出信封，中間只剩極細的現金流，形成明確失衡。',
+      scene: '物件隱喻：一個收入信封連向多個支出信封，中間只剩極細的現金流，形成明確失衡。',
       prompt:
-        'A people-free overhead still life: one household income envelope feeds into several expense envelopes through narrow paper strips, leaving only one very thin remaining strip at the end. Use ordinary real materials and a clear imbalance.',
+        'Object symbolism: one household income envelope feeds into several expense envelopes through narrow paper strips, leaving only one very thin remaining strip at the end. Use ordinary real materials and a clear imbalance.',
     },
   };
 }
@@ -452,7 +452,7 @@ export function makeThumbnailIdeas(
 
   const emotionalLayout = `EMOTIONAL PORTRAIT COMPOSITION: a large chest-up Taiwanese male creator aged 40–50 wearing understated dark rectangular glasses occupies the left 40–45%, with the top edge of a dark laptop in the lower-left foreground. Show a clear topic-specific emotion and hand gesture, with his gaze aimed toward one compact conflict object in the upper-right. Reserve the middle-right for the first headline and a broad rising warm-gold diagonal ribbon across the lower-right for the second headline.`;
   const situationLayout = `LIVED-IN ENVIRONMENTAL COMPOSITION: show a wide Taiwanese home, dining-table, or after-work setting across the frame. The creator appears smaller, about 25–32% of the frame, naturally performing the topic-specific action inside the environment instead of appearing as a large cutout portrait. Make the cause and consequence visible through real props distributed across foreground and background. Reserve a quiet upper-right area for the first headline and a broad warm-gold diagonal ribbon across the lower third for the second headline.`;
-  const symbolicLayout = `PEOPLE-FREE SYMBOLIC COMPOSITION: absolutely no presenter, person, face, hand, or body. Let one oversized tactile visual metaphor or one strongly contrasted object pair dominate the center and right side, with dramatic scale, depth, and immediately readable meaning. Reserve a clean left or upper-left zone for the first headline and a broad warm-gold diagonal ribbon across the lower-right for the second headline.`;
+  const symbolicLayout = `LEFT/RIGHT BEFORE-AFTER SYMBOLIC COMPOSITION: split the frame into two clearly different halves using the same referenced creator on both sides. Preserve identical face, glasses, hair, clothing, and proportions. LEFT is BEFORE: darker, cluttered, pressured, inefficient, or stuck, supported by topic-specific problem objects. RIGHT is AFTER: clearer, organized, calmer, and visibly improved, supported by corresponding solution objects. Use a strong center transition and reserve the upper middle for the first headline plus a broad warm-gold diagonal ribbon across the lower third for the second headline.`;
   const sharedStyle = `Premium high-contrast semi-realistic hand-painted editorial illustration, not photography. Preserve believable adult anatomy whenever a person is present, while adding visible fine pencil and charcoal cross-hatching, textured digital brushwork, softly simplified forms, and a refined illustrated finish. Use a near-black base, ivory-white highlights, warm metallic gold rim light, and crisp focal separation. Mature, thoughtful, and trustworthy rather than cute or flashy. Keep two diagonal headline zones and a small restrained warm-gold dot-grid accent, but make the three compositions unmistakably different at thumbnail size.`;
   const sharedConstraints = `Generate the background and visual subjects only. No photorealistic camera look, photographic skin pores, flat vector art, anime, manga, chibi proportions, children's-book cartoon style, visible text, letters, Chinese characters, numbers, logos, watermarks, subtitles, UI labels, extra badges, money, coins, gold bars, rockets, luxury cars, profit charts, holographic interfaces, or generic office stock-photo poses. A single polished black-and-gold 3D AI-agent character is allowed only when the selected topic is directly about AI or agents; do not add unrelated mascots.`;
   const twoLineHeadlines = [
@@ -479,9 +479,9 @@ export function makeThumbnailIdeas(
     {
       name: '象徵對比',
       text: twoLineHeadlines[2],
-      scene: `象徵對比：完全不放人物，把「${visualSeed.symbolic.scene}」放大成主導全圖的物件隱喻與尺度反差。`,
-      prompt: `Direction C — symbolic contrast. SEMANTIC SOURCE: ${visualSeed.symbolic.prompt} Make this a bold people-free object metaphor. Do not include the presenter, laptop portrait, face, hand, or lived-in human scene from Directions A and B. ${symbolicLayout} Use ${round.mood}. ${sharedStyle} Favor tactile materials and an instantly readable silhouette. ${sharedConstraints}`,
-      canvaPrompt: `Create one 16:9 symbolic-contrast YouTube thumbnail background. SEMANTIC IDEA: ${visualSeed.symbolic.prompt} Make this a bold people-free object metaphor. Do not include a presenter, portrait, face, hand, or lived-in human scene. COMPOSITION: ${symbolicLayout} LIGHTING: ${round.mood}. STYLE: ${sharedStyle} CONSTRAINTS: ${sharedConstraints}`,
+      scene: `左右前後對比：同一位米克大叔分別出現在左右兩側；左側呈現改變前的混亂與壓力，右側呈現改變後的清楚與改善，並用「${visualSeed.symbolic.scene}」強化差異。`,
+      prompt: `Direction C — left/right before-after symbolic contrast. OBJECT SYMBOLISM SOURCE: ${visualSeed.symbolic.prompt} Use the object idea only to reinforce the transformation. Show the same referenced creator twice: BEFORE on the left and AFTER on the right. Do not use the close portrait layout from Direction A or the single continuous environment from Direction B. ${symbolicLayout} Use ${round.mood}. ${sharedStyle} Favor tactile materials and an instantly readable transformation. ${sharedConstraints}`,
+      canvaPrompt: `Create one 16:9 left/right before-after YouTube thumbnail background. OBJECT SYMBOLISM IDEA: ${visualSeed.symbolic.prompt} Show the same referenced creator twice with consistent identity and wardrobe: BEFORE on the left and AFTER on the right. COMPOSITION: ${symbolicLayout} LIGHTING: ${round.mood}. STYLE: ${sharedStyle} CONSTRAINTS: ${sharedConstraints}`,
     },
   ];
 }
