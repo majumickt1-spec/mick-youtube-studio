@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { makeTitles, type TitleOption } from '@/lib/title-rules';
+import { makeTitles, titleKinds, type TitleOption } from '@/lib/title-rules';
 import { makeThumbnailIdeas } from '@/lib/thumbnail-prompts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -214,7 +214,10 @@ export default function Home() {
   const titles = useMemo(
     () =>
       state.titleSourceTopic === state.selectedTopic &&
-      state.titleOptions?.length === 3
+      state.titleOptions?.length === 3 &&
+      state.titleOptions.every(
+        (option, index) => option.kind === titleKinds[index],
+      )
         ? state.titleOptions
         : makeTitles(state.selectedTopic, state.pillar),
     [
@@ -1681,7 +1684,8 @@ export default function Home() {
                         </Button>
                       </div>
                       <p className="text-xs leading-5 text-muted-foreground">
-                        標題會依照上方 Step 1 選定的完整主題重新產生；金額只採用與主題相關的已提供事實，沒有合適資料就不編造。
+                        每次依目前主題產生反常型、轉變型、警示型各 1
+                        個；金額與數字只採用已提供且可核實的事實，不會為了標題效果編造。
                       </p>
                       {titleError && (
                         <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
@@ -1753,7 +1757,8 @@ export default function Home() {
                             </p>
                             <p className="mt-1 text-xs leading-5 text-muted-foreground">
                               三組都保留金色斜帶與兩層標題空間；大字會從所選標題提煉。重新生成會輪替鏡位、光線與主題細節，並使用{' '}
-                              {provider.name} API 額度；圖片不直接生成文字、數字或標誌，避免亂碼。
+                              {provider.name} API
+                              額度；圖片不直接生成文字、數字或標誌，避免亂碼。
                             </p>
                             <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
                               <Input
@@ -1969,7 +1974,8 @@ export default function Home() {
                               : '產生腳本與資訊欄'}
                       </Button>
                       <span className="text-xs leading-5 text-muted-foreground">
-                        使用 OpenAI API；依主題選用相關真實故事，不補造人物、對話、成果或網址。
+                        使用 OpenAI
+                        API；依主題選用相關真實故事，不補造人物、對話、成果或網址。
                       </span>
                     </div>
                   </div>

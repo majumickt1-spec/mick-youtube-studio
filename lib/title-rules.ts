@@ -1,7 +1,9 @@
 export type TitleOption = {
-  kind: '反常型' | '金額型' | '數字型';
+  kind: '反常型' | '轉變型' | '警示型';
   title: string;
 };
+
+export const titleKinds: TitleOption['kind'][] = ['反常型', '轉變型', '警示型'];
 
 function shortenWithoutBreakingEnglish(value: string, maxLength: number) {
   const cleaned = value.replace(/\s+/g, ' ').trim();
@@ -20,7 +22,10 @@ function shortenWithoutBreakingEnglish(value: string, maxLength: number) {
 function topicAnchor(topic: string) {
   const normalized = topic
     .replace(/[「」『』【】]/g, '')
-    .replace(/^(?:我想要?|想要|如何|怎麼|為什麼|請問|聊聊|探討|做一支關於)\s*/u, '')
+    .replace(
+      /^(?:我想要?|想要|如何|怎麼|為什麼|請問|聊聊|探討|做一支關於)\s*/u,
+      '',
+    )
     .replace(/\s+/g, ' ')
     .trim();
   const clauses = normalized
@@ -29,18 +34,6 @@ function topicAnchor(topic: string) {
     .filter(Boolean);
   const anchor = clauses.find((part) => part.length >= 5) || normalized;
   return shortenWithoutBreakingEnglish(anchor || '這個主題', 18);
-}
-
-function editorialCount(topic: string) {
-  let score = 0;
-  for (let index = 0; index < topic.length; index += 1) {
-    score += topic.charCodeAt(index) * (index + 1);
-  }
-  return [2, 4, 5, 6][Math.abs(score) % 4];
-}
-
-function moneyAmounts(topic: string) {
-  return topic.match(/\d[\d,.]*\s*(?:元|塊|千|萬)/gu) || [];
 }
 
 function aiSubject(topic: string, fallback: string) {
@@ -67,8 +60,6 @@ function cashflowSubject(topic: string, fallback: string) {
 /** Local fallback titles must still change with the selected Step 1 topic. */
 export function makeTitles(topic: string, pillar: string): TitleOption[] {
   const anchor = topicAnchor(topic);
-  const count = editorialCount(topic);
-  const amounts = moneyAmounts(topic);
 
   if (pillar === 'AI資產建立') {
     const subject = aiSubject(topic, anchor);
@@ -85,29 +76,18 @@ export function makeTitles(topic: string, pillar: string): TitleOption[] {
         title: `${subject}做得出來，為什麼還不能${outcome}？`,
       },
       {
-        kind: '反常型',
-        title: `別急著換工具：${subject}真正缺的可能不是更多 AI`,
+        kind: '轉變型',
+        title: `從做得出來到能${outcome}：${subject}要跨過的門檻`,
       },
       {
-        kind: '數字型',
-        title: `${count} 個檢查點，看懂「${subject}」能不能${outcome}`,
+        kind: '警示型',
+        title: `別再只換工具：${subject}沒有驗證，做再多也難${outcome}`,
       },
     ];
   }
 
   const subject = cashflowSubject(topic, anchor);
   const isRunwayTopic = /裁員|失業|安全天數|沒薪水/u.test(topic);
-  const secondOption: TitleOption = amounts.length
-    ? {
-        kind: '金額型',
-        title: `${subject}涉及 ${amounts.slice(0, 2).join('、')}，家裡真正剩下多少？`,
-      }
-    : {
-        kind: '反常型',
-        title: isRunwayTopic
-          ? '真正可怕的不是失業，是你不知道家裡能撐多久'
-          : `問題可能不在${subject}本身，而是你每月真正剩多少`,
-      };
   return [
     {
       kind: '反常型',
@@ -115,10 +95,17 @@ export function makeTitles(topic: string, pillar: string): TitleOption[] {
         ? '工作還在，為什麼家庭安全天數可能比你想的短？'
         : `${subject}看起來負擔得起，為什麼家裡還是沒餘裕？`,
     },
-    secondOption,
     {
-      kind: '數字型',
-      title: `${count} 個現金流檢查點，看清「${subject}」有沒有壓縮家庭餘裕`,
+      kind: '轉變型',
+      title: isRunwayTopic
+        ? '從害怕失業到看得見期限：先算清家庭安全天數'
+        : `從月底見底到保有餘裕：先看懂${subject}怎麼被壓縮`,
+    },
+    {
+      kind: '警示型',
+      title: isRunwayTopic
+        ? '別等工作出狀況，才發現家裡的現金撐不了多久'
+        : `別再只砍日常開銷：真正壓縮${subject}的可能是財務順序`,
     },
   ];
 }
