@@ -127,12 +127,20 @@ function finalPrompt(
   topic: string,
   pillar: string,
   compositionIndex: number,
+  provider: ThumbnailProvider,
 ) {
   const compositions = [
     'DIRECTION A — EMOTIONAL CONFLICT: use a large chest-up creator portrait on the left 40–45%, a clear topic-specific expression and hand gesture, a laptop edge in the lower-left, and one compact conflict object in the upper-right. This must read as an emotional portrait, not a wide room scene or object-only still life.',
     'DIRECTION B — ONE CONTINUOUS LIVED-IN SITUATION: create one unified Taiwanese home, dining-table, or after-work environment photographed from one viewpoint. The entire 16:9 frame must belong to the same room, same continuous table or floor plane, same background architecture, and same coherent lighting. Keep the creator smaller at roughly 25–32% of the frame and naturally performing one topic-specific action. Show cause and consequence only through real props arranged within this single scene. Leave headline space as a naturally quieter part of the same wall or room, not as a separate black panel. Absolutely no split screen, diptych, before-and-after layout, divided background, hard center boundary, second room, separate vignette, or abrupt change of lighting. Do not use the large left-side cutout portrait from Direction A and do not compress the setting into one small object cluster.',
     'DIRECTION C — EXACT 50/50 LEFT/RIGHT BEFORE-AFTER CONTRAST: place the dividing seam at the exact horizontal midpoint (x = 50%), so the BEFORE side occupies the left 50% and the AFTER side occupies the right 50%. Use a straight vertical or very narrow near-vertical center seam; do not use a broad sweeping diagonal split that makes one side larger. Show the same referenced creator on both sides with the same face, glasses, hair, clothing, body proportions, crop, head size, and visual weight. Center the left creator near x = 25% and the right creator near x = 75%, keeping all side-specific props inside their own half. The left side is BEFORE: darker, cluttered, inefficient, pressured, or stuck. The right side is AFTER: clearer, organized, calmer, and visibly improved. Do not create two unrelated people or two unrelated scenes, and do not let either side dominate more than half of the frame.',
   ];
+  const providerStyle =
+    provider === 'google'
+      ? `NANO BANANA RENDERING CALIBRATION — FULL-COLOR PAINTERLY OUTPUT REQUIRED
+Render the final image as a polished full-color digital painting with opaque color masses, natural warm skin tones, softly painted facial planes, controlled brush texture, and restrained fine detail. The attached creator sheet is for identity and wardrobe only: ignore its pale paper, contact-sheet layout, pencil texture, outlines, hatching, and sketch finish. Do not imitate monochrome drawing, ink illustration, manga, comic panels, storyboard art, engraving, charcoal sketching, or a white-paper look. Do not write explanatory labels such as BEFORE, AFTER, INCOME, EXPENSE, SAVINGS, category names, or any other words on props. Use color, object thickness, spacing, lighting, and physical arrangement to communicate meaning without text.`
+      : `GPT IMAGE RENDERING CALIBRATION — ILLUSTRATED, NOT PHOTOGRAPHIC
+Render the final image as a polished full-color digital painting with softly simplified facial planes, visible but controlled brushwork, clean color shapes, natural warm skin tones, and subtle hand-made texture. Avoid a camera-photo finish, photographic skin, lens realism, and overly smooth stock-photo surfaces. The attached creator sheet is for identity and wardrobe only; do not copy its paper background, contact-sheet layout, hatching, or sketch presentation.`;
+
   return `DELIVERABLE
 Create exactly one premium semi-realistic hand-painted 16:9 YouTube thumbnail background for a Taiwanese personal-finance creator. It must look illustrated rather than photographed, remain clear at phone size, and leave usable negative space for a headline added later.
 
@@ -145,7 +153,7 @@ Broader topic: ${topic}
 Content pillar: ${pillar}
 
 CREATOR IDENTITY REFERENCE — REQUIRED
-An attached reference sheet shows the only creator allowed in this thumbnail. Preserve his recognizable face shape, short spiky black hair, dark rectangular glasses, calm mature expression, black textured sweater over a white collared shirt, dark trousers, brown shoes, and black wristwatch. Treat the sheet as an identity and wardrobe reference, not as content to copy into the thumbnail. Do not reproduce the white contact-sheet background, multiple pose lineup, or sketch-sheet layout. Direction A uses one close portrait, Direction B uses one smaller environmental figure, and Direction C uses the same creator twice as before and after. Do not invent a different host or add other people.
+An attached reference sheet shows the only creator allowed in this thumbnail. Preserve his recognizable face shape, short spiky black hair, dark rectangular glasses, calm mature expression, black textured sweater over a white collared shirt, dark trousers, brown shoes, and black wristwatch. Treat the sheet strictly as an identity and wardrobe reference, never as a style reference or content layout. Ignore its white paper, pencil texture, outlines, hatching, multiple-pose contact sheet, and sketch presentation. Direction A uses one close portrait, Direction B uses one smaller environmental figure, and Direction C uses the same creator twice as before and after. Do not invent a different host or add other people.
 
 VISUAL DIRECTION
 ${prompt}
@@ -158,10 +166,12 @@ ${compositions[compositionIndex] || compositions[0]}
 Follow only this assigned composition. Do not blend it with either of the other two directions. Express the selected title rather than merely illustrating the broader topic. Do not draw a fake interface screenshot.
 
 STYLE
-Premium high-contrast semi-realistic hand-painted YouTube editorial illustration, not photography. When a person is present, preserve believable adult facial anatomy, recognizable human proportions, understated expressions, and natural posture. Use visible fine pencil and charcoal cross-hatching, textured digital brushwork, softly simplified forms, and a refined illustrated finish. Near-black base, ivory-white highlights, warm metallic gold rim light, crisp focal separation, mature and trustworthy. Topic objects may use polished cinematic 3D rendering. The composition must remain clear at phone size. Do not default to a full amber night scene.
+Premium high-contrast full-color semi-realistic digitally hand-painted YouTube editorial illustration, not photography. When a person is present, preserve believable adult facial anatomy, recognizable human proportions, understated expressions, and natural posture. Use opaque painterly surfaces, softly simplified forms, controlled digital brushwork, natural warm skin tones, and only subtle hand-drawn accents in small details. Do not let linework, hatching, or paper texture dominate the image. Near-black base, ivory-white highlights, warm metallic gold rim light, crisp focal separation, mature and trustworthy. Topic objects may use polished cinematic 3D rendering. The composition must remain clear at phone size. Do not default to a full amber night scene.
+
+${providerStyle}
 
 STRICT CONSTRAINTS
-Absolutely no replacement presenter, changed face, changed glasses, changed hairstyle, changed wardrobe, unrelated people, photorealistic camera look, photographic skin pores, flat vector art, anime, manga, chibi proportions, children's-book cartoon style, visible text, Chinese characters, English letters, numbers, logos, watermarks, subtitles, UI labels, extra badges, money, coins, gold bars, rockets, luxury cars, profit charts, holographic interfaces, or generic stock-business-team scenes. Do not add an unrelated mascot; one mature topic-specific 3D AI-agent character is allowed only for an AI or agent topic.`;
+Absolutely no replacement presenter, changed face, changed glasses, changed hairstyle, changed wardrobe, unrelated people, photorealistic camera look, photographic skin pores, monochrome or grayscale rendering, black-and-white ink drawing, comic line art, engraving, storyboard sketch, paper-texture background, flat vector art, anime, manga, chibi proportions, children's-book cartoon style, visible text, Chinese characters, English letters, numbers, logos, watermarks, subtitles, UI labels, extra badges, money, coins, gold bars, rockets, luxury cars, profit charts, holographic interfaces, or generic stock-business-team scenes. All papers, cards, folders, calendars, and envelopes must be blank and unlabeled. Never print BEFORE, AFTER, INCOME, EXPENSE, SAVINGS, or category names inside the image; communicate them only through color, object size, position, quantity, lighting, and arrangement. Do not add an unrelated mascot; one mature topic-specific 3D AI-agent character is allowed only for an AI or agent topic.`;
 }
 
 function geminiImageFrom(interaction: GeminiInteraction) {
@@ -256,6 +266,7 @@ export async function POST(request: Request) {
                   topic,
                   pillar,
                   compositionIndex,
+                  'google',
                 ),
               },
               {
@@ -307,6 +318,7 @@ export async function POST(request: Request) {
             topic,
             pillar,
             index,
+            provider,
           );
           if (provider === 'openai') {
             const result = await openAIRequest(apiKey, '/responses', {

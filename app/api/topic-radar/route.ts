@@ -104,7 +104,11 @@ function parsePlannedTopics(text: string) {
   if (!Array.isArray(parsed.candidates)) {
     throw new Error('已有方向的選題結果格式不完整');
   }
-  return [...new Set(parsed.candidates.map((item) => validString(item, 180)).filter(Boolean))];
+  return [
+    ...new Set(
+      parsed.candidates.map((item) => validString(item, 180)).filter(Boolean),
+    ),
+  ];
 }
 
 function parseTitleOptions(text: string) {
@@ -112,7 +116,7 @@ function parseTitleOptions(text: string) {
   if (!Array.isArray(parsed.options)) {
     throw new Error('影片標題結果格式不完整');
   }
-  const allowedKinds = new Set(['反常型', '金額型', '數字型']);
+  const allowedKinds = new Set(['反常型', '轉變型', '警示型']);
   return parsed.options
     .map((item) => {
       const option = item as Record<string, unknown>;
@@ -448,15 +452,17 @@ Step 1 選定主題：${topic}
 補充觀點／親身經驗／案例：${supplement || '未提供'}
 對標影片／參考來源／筆記：${references || '未提供'}
 
-請依序提供：
-1. 反常型：打破一個與本集主題直接相關的直覺，讓人想知道原因。
-2. 金額型：只有上方資料確實提供且與本集主題直接相關的真實金額時才使用「金額型」；否則改成第二個不同角度的「反常型」，禁止編造金額、收入或成效。
-3. 數字型：先根據這一集實際能拆出的內容，再選 2–7 之間有意義的數量與具體單位，例如資料、設定、判斷、門檻、錯誤或檢查點。數字必須與標題承諾一致，不可假裝有未提供的實測結果。
+請依序提供三種不同類型：
+1. 反常型：用與直覺相反的具體事實、因果或對比形成好奇缺口，讓人想知道原因；不可只寫空泛問句。
+2. 轉變型：清楚呈現觀眾能理解的「從 X 到 Y」改變、前後差異或可達成狀態；Y 必須是影片確實能支持的結果，不可承諾未經證實的成效。
+3. 警示型：指出觀眾常犯的錯誤、忽略的風險或持續付出的代價，運用損失規避；可使用「別再、停止、不要、小心」等結構，但不可羞辱、恐嚇或製造暴富焦慮。
 
 規則：
 - 先從 Step 1 選定主題擷取 2–4 個不可替換的核心詞；三個標題都必須保留至少一個核心詞與該題獨有的承諾。
-- 換一個 Step 1 主題時，三個標題的主詞、衝突與數字型單位都必須重新判斷，不能沿用上一題的泛用句型。
-- 數字型禁止預設套用「3 個問題」「3 個步驟」「3 個數字」；只有內容確實最適合三項時才能使用 3，而且後面的單位必須直接對應本集主題。
+- 三個標題必須分別標示為反常型、轉變型、警示型，不得重複類型，也不得把同一個句型只換兩三個字。
+- 換一個 Step 1 主題時，三個標題的主詞、衝突、轉變與警示都必須重新判斷，不能沿用上一題的泛用句型。
+- 金額與數字不是固定類型，只能在上方資料確實提供、與本集主題直接相關且能增加具體感時使用；禁止編造金額、收入、成效或清單數量。
+- 問號最多只能出現在一個標題，另外兩個使用明確陳述，避免三個標題都變成相似問句。
 - 三個標題的開頭與句型必須不同；不能只是把同一句話換兩三個字。
 - 每個標題約 18–34 個中文字，不加分類標籤，不寫空洞口號。
 - 鎖定一個場景、一個痛點、一個懸念；標題是包裝，不可擅自改變本集主體。
@@ -492,7 +498,7 @@ Step 1 選定主題：${topic}
                         properties: {
                           kind: {
                             type: 'string',
-                            enum: ['反常型', '金額型', '數字型'],
+                            enum: ['反常型', '轉變型', '警示型'],
                           },
                           title: { type: 'string' },
                         },
@@ -511,8 +517,12 @@ Step 1 選定主題：${topic}
         52_000,
       );
       const options = parseTitleOptions(textFrom(result)).slice(0, 3);
-      if (options.length !== 3) {
-        throw new Error('未能產生 3 個有效標題，請再試一次');
+      const expectedKinds = ['反常型', '轉變型', '警示型'];
+      if (
+        options.length !== 3 ||
+        options.some((option, index) => option.kind !== expectedKinds[index])
+      ) {
+        throw new Error('未能產生反常型、轉變型、警示型各 1 個，請再試一次');
       }
       return Response.json({ options });
     }
